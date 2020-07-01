@@ -1,0 +1,140 @@
+{% extends 'femtolytics/base.html' %}
+{% load static %}
+{% block content %}
+{% include 'femtolytics/navbar.html' %}
+<main class="container">
+    <div class="row mb-4">
+        <div class="col">
+            {% if apps|length > 1 %}
+            <select class="form-control mb-2" id="app_selector">
+                {% for a in apps %}
+                    <option value="{{ a.id }}" data-url="{% url 'femtolytics:dashboards_by_app' a.id %}" {% if a.id == app.id %}selected{% endif %}>{{ a.package_name }}</option>
+                {% endfor %}
+            </select>
+            {% endif %}
+            <canvas id="myChart" width="400" height="150"></canvas>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-md">
+            <h2>Sessions</h2>
+            <table class="table table-bordered table-condensed">
+                <tbody>
+                    {% for session in sessions %}
+                    <tr>
+                        <td><a href="{% url 'femtolytics:session' app.id session.id %}">{{ session.short_id }}</a></td>
+                        <td>
+                            <p class="mb-0">[{{ session.started_at|date:'Y/m/d H:i:s' }} &mdash; {{ session.ended_at|date:'Y/m/d H:i:s' }}]</p>
+                            <p class="mb-0 text-muted"><small>{{ session.duration_str }} &middot; {{ session.sorted_activities|length }} actions</small></p>
+                        </td>
+                    </tr>
+                    {% endfor %}        
+                </tbody>
+            </table>
+        </div>
+        <div class="col-md">
+            <h2>Map</h2>
+            {% if locations %}
+            <div id="map" style="min-width: 200px; min-height: 250px;"></div>
+            {% endif %}
+        </div>
+    </div>
+</main>
+
+{% endblock %}
+
+{% block script %}
+<script src="//cdnjs.cloudflare.com/ajax/libs/d3/3.5.3/d3.min.js"></script>
+<script src="//cdnjs.cloudflare.com/ajax/libs/topojson/1.6.9/topojson.min.js"></script>
+<script src="{% static 'femtolytics/datamaps.world.min.js' %}"></script>
+
+<script>
+var ctx = document.getElementById('myChart').getContext('2d');
+var myChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+        "labels": [
+            {% for entry in stats %}
+            "{{ entry.day|date:'Y/m/d'}}",
+            {% endfor %}
+        ],
+        "datasets": [
+                {
+                    "label": "Sessions",
+                    "data": [
+                        {% for entry in stats %}
+                            {{ entry.sessions }},
+                        {% endfor %}
+                    ],
+                    "fill": true,
+                    "lineTension": 0.2,
+                    "borderColor": 'rgba(54, 162, 235, 1)',
+                    "backgroundColor": 'rgba(54, 162, 235, 0.2)',
+                },
+                {
+                    "label": "New Users",
+                    "data": [
+                        {% for entry in stats %}
+                            {{ entry.visitors }},
+                        {% endfor %}
+                    ],
+                    "fill": true,
+                    "lineTension": 0.2,
+                    "borderColor": 'rgba(255, 99, 132, 1)',
+                    "backgroundColor": 'rgba(255, 99, 132, 0.2)',
+                }
+
+        ],
+    },
+    options: {
+        scales: {
+            yAxes: [{
+                ticks: {
+                    beginAtZero: true
+                }
+            }]
+        }
+    }
+});
+
+var map = new Datamap({
+    element: document.getElementById('map'),
+    fills: {
+        'FILL0.1': 'rgba(54, 162, 235, 0.1)',
+        'FILL0.2': 'rgba(54, 162, 235, 0.2)',
+        'FILL0.3': 'rgba(54, 162, 235, 0.3)',
+        'FILL0.4': 'rgba(54, 162, 235, 0.4)',
+        'FILL0.5': 'rgba(54, 162, 235, 0.5)',
+        'FILL0.6': 'rgba(54, 162, 235, 0.6)',
+        'FILL0.7': 'rgba(54, 162, 235, 0.7)',
+        'FILL0.8': 'rgba(54, 162, 235, 0.8)',
+        'FILL0.9': 'rgba(54, 162, 235, 0.9)',
+        'FILL1.0': 'rgba(54, 162, 235, 1.0)',
+
+        defaultFill: '#DDDDDD',
+    },
+    geographyConfig: {
+        popupTemplate: function(geography, data) {
+            return '<div class="hoverinfo">' + geography.properties.name + "\nSessions: " + data.sessions + '</div>';
+        },
+    },
+    data: {
+        {% for location in locations %}
+            '{{ location.alpha_3 }}': {
+                fillKey: '{{ location.fill }}',
+                sessions: {{ location.count }},
+            },
+        {% endfor %}
+    },
+});
+
+$(document).ready(function() {
+    $('#app_selector').change(function() {
+        var selected = $("option:selected", this);
+        window.location = selected.attr('data-url');
+    })
+})
+
+
+</script>
+{% endblock %}

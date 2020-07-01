@@ -1,0 +1,34 @@
+{% extends 'femtolytics/base.html' %}
+
+{% block content %}
+{% include 'femtolytics/navbar.html' %}
+<div class="container">
+    <div class="row">
+        <div class="col table-responsive text-center">
+            {% if apps %}
+            <table class="table table-bordered table-condensed table-hover">
+                <tbody>
+                    {% for app in apps %}
+                        <tr>
+                            <td>{{ app.package_name }}</td>
+                            <td>
+                                <a href="{% url 'femtolytics:sessions_by_app' app.id %}">Sessions</a> &middot;
+                                <a href="{% url 'femtolytics:apps_edit' app.id %}">Edit</a> &middot;
+                                <a href="{% url 'femtolytics:apps_delete' app.id %}">Delete</a>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+                <p>You do not have any applications setup.</p>
+                <a href="{% url 'femtolytics:apps_add' %}" class="btn btn-primary">Add Application</a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+<nav class="navbar fixed-bottom mb-3">
+    <a class="btn btn-primary ml-auto mr-1" href="{% url 'femtolytics:apps_add' %}"><i class="fas fa-plus"></i> Add Application</a>
+</nav>
+
+{% endblock %}

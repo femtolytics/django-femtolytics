@@ -1,0 +1,33 @@
+{% extends 'femtolytics/base.html' %}
+
+{% block head %}
+<style>
+    input.title:focus, input.title  {
+        background: transparent !important;
+        border: 0;
+        outline: 0;
+        box-shadow:none !important;
+        font-size: 30px;
+        width: 100%;
+        border-bottom: 1px solid #cccccc;
+    }    
+</style>
+{% endblock %}
+
+{% block content %}
+{% include 'femtolytics/navbar.html' %}
+<main class="container">
+    <div class="row">
+        <div class="col">
+            {% if app %}
+            <form method="POST" action="{% url 'femtolytics:apps_edit' app.id %}">
+            {% else %}
+            <form method="POST" action="{% url 'femtolytics:apps_add' %}">
+            {% endif %}
+                {% csrf_token %}
+                <input type="text" name="package_name" class="w-100 mb-2 title" placeholder="com.femtolytics.myapp" autofocus required value="{{ app.package_name }}"/>
+                <button type="submit" class="btn btn-success" style="min-width: 150px;">{% if app %}Save{% else %}Add Application{% endif %}</button>
+            </form>
+    </div>
+</main>
+{% endblock %}

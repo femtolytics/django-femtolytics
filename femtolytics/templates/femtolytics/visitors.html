@@ -1,0 +1,42 @@
+{% extends 'femtolytics/base.html' %}
+
+{% block content %}
+{% include 'femtolytics/navbar.html' %}
+<div class="container">
+    <div class="row">
+        <div class="col">
+            {% if apps|length > 1 %}
+            <select class="form-control mb-2" id="app_selector">
+                {% for a in apps %}
+                    <option value="{{ a.id }}" data-url="{% url 'femtolytics:visitors_by_app' a.id %}" {% if a.id == app.id %}selected{% endif %}>{{ a.package_name }}</option>
+                {% endfor %}
+            </select>
+            {% endif %}
+            <h2>Visitors</h2>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col table-responsive">
+            <table class="table table-bordered table-condensed table-hover">
+                <tbody>
+                    {% for visitor in visitors %}
+                    <tr><td><a href="{% url 'femtolytics:visitor' visitor.app_id visitor.id %}">{{ visitor.short_id }}</a></td></tr>
+                    {% endfor %}        
+                </tbody>
+            </table>
+        
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block script %}
+<script>
+$(document).ready(function() {
+    $('#app_selector').change(function() {
+        var selected = $("option:selected", this);
+        window.location = selected.attr('data-url');
+    })
+})
+</script>
+{% endblock %}

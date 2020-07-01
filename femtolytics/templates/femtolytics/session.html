@@ -1,0 +1,13 @@
+{% extends 'femtolytics/base.html' %}
+
+{% block content %}
+{% include 'femtolytics/navbar.html' %}
+<div class="container">
+    <div class="row">
+        <div class="col">
+            <h2><a href="{% url 'femtolytics:sessions_by_app' session.app_id %}">&lt;</a>&nbsp;Session</h2>
+        </div>
+    </div>
+    {%include 'femtolytics/fragments/session.html' %}
+</div>
+{% endblock %}

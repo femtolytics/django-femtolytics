@@ -1,0 +1,42 @@
+<div class="row">
+    <div class="col">
+        <h5 class="mb-0">{{ session.short_id }}</h5>
+        <p class="text-muted mb-0">
+            [{{ session.started_at|date:'Y/m/d H:i:s' }} &mdash; {{ session.ended_at|date:'Y/m/d H:i:s' }}]
+            {{ session.duration_str }}
+        </p>
+        <p class="text-muted mb-0">
+            Visitor: <a href="{% url 'femtolytics:visitor' session.app_id session.visitor.id %}">{{ session.visitor.short_id }}</a>
+            &middot;
+            Version: {{ session.sorted_activities.first.version }}
+            &middot;
+            Device: {{ session.sorted_activities.first.device }}
+            &middot;
+            Location: {{ session.sorted_activities.first.location }}
+        </p>
+        <div class="table-responsive-sm">
+        <table class="table table-bordered table-sm table-hover w-100">
+            <thead class="thead-dark">
+                <tr><th>Type</th><th>Properties</th><th>Time</th></tr>
+            </thead>
+            <tbody>
+                {% for activity in session.sorted_activities %}
+                <tr>
+                    <td style="width: 120px!important;">{% if activity.analyzed_type == 'VIEW' %}<i class="far fa-eye"></i>{% elif activity.analyzed_type == 'CRASH' %}<i class="fal fa-car-crash"></i>{% else %}{{ activity.analyzed_type }}{% endif %}</td>
+                    <td>
+                        {% if activity.properties %}
+                        <span style="white-space: pre;">{{ activity.analyzed_properties }}</span>
+                        {% endif %}
+                        {% if activity.extended_properties %}
+                        <a href="#" onclick="$('#{{ activity.id }}').toggle(); return false;"><i class="fas fa-chevron-down"></i></a>
+                        <div id="{{ activity.id }}" style="display: none; white-space: pre;">{{ activity.extended_properties }}</div>
+                        {% endif %}
+                    </td>
+                    <td class="text-muted text-center" style="width: 80px!important;"><small>{{ activity.occured_at|date:'H:i:s' }}</small></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        </div>
+    </div>
+</div>
