@@ -248,13 +248,13 @@ def on_event(request):
     event = body['events'][0]
     logger.info('{} {}'.format(event['device']
                                ['name'], event['event']['type']))
+    remote_ip, city = get_geo_info(request)
+    
     for event in body['events']:
         properties = None
         if 'properties' in event['event']:
             properties = json.dumps(event['event']['properties'])
         event['event_time'] = parser.parse(event['event']['time'])
-
-        remote_ip, city = get_geo_info(request)
 
         app, visitor, session = Activity.find_app_visitor_session(event)
         if app is None:
@@ -289,13 +289,13 @@ def on_action(request):
     action = body['actions'][0]
     logger.info('{} {}'.format(
         action['device']['name'], action['action']['type']))
+    remote_ip, city = get_geo_info(request)
+    
     for action in body['actions']:
         properties = None
         if 'properties' in action['action']:
             properties = json.dumps(action['action']['properties'])
         action['event_time'] = parser.parse(action['action']['time'])
-
-        remote_ip, city = get_geo_info(request)
 
         app, visitor, session = Activity.find_app_visitor_session(action)
         if app is None:
