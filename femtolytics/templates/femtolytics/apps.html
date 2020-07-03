@@ -27,8 +27,9 @@
         </div>
     </div>
 </div>
+{% if apps %}
 <nav class="navbar fixed-bottom mb-3">
     <a class="btn btn-primary ml-auto mr-1" href="{% url 'femtolytics:apps_add' %}"><i class="fas fa-plus"></i> Add Application</a>
 </nav>
-
+{% endif %}
 {% endblock %}
