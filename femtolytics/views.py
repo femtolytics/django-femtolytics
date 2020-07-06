@@ -4,15 +4,18 @@ import logging
 from datetime import datetime, timedelta
 from dateutil import parser
 from django.contrib.auth.decorators import login_required
-
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models.functions import TruncDay
 from django.db.models import Count
 from django.shortcuts import render, redirect, get_object_or_404, Http404
+from django.urls import reverse_lazy
+from django.views.generic.base import View, TemplateView
 from femtolytics.models import App, Session, Visitor, Activity
 from femtolytics.forms import AppForm
 from rest_framework import authentication, permissions, serializers, status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
+
 
 logger = logging.getLogger("femtolytics")
 
@@ -43,196 +46,226 @@ def get_geo_info(request):
     return remote_ip, city
 
 
-@login_required
-def index(request):
-    apps = App.objects.filter(owner=request.user)
-    if apps.count() == 0:
-        return redirect('femtolytics:apps')
-    else:
-        return redirect('femtolytics:dashboards_by_app', apps[0].id)
+class DashboardView(View, LoginRequiredMixin):
+    def get(self, request):
+        apps = App.objects.filter(owner=request.user)
+        if apps.count() == 0:
+            return redirect('femtolytics:apps')
+        else:
+            return redirect('femtolytics:dashboards_by_app', apps[0].id)
+    
 
+class DashboardByAppView(View, LoginRequiredMixin):
+    template_name = 'femtolytics/dashboard.html'
 
-@login_required
-def dashboards_by_app(request, id):
-    app = get_object_or_404(App, pk=id)
-    if app.owner != request.user:
-        return Http404
+    def get(self, request, app_id):
+        app = get_object_or_404(App, pk=app_id)
+        if app.owner != request.user:
+            return Http404
 
-    context = {}
-    context['apps'] = App.objects.filter(owner=request.user)
-    context['app'] = app
-    context['sessions'] = Session.objects.filter(app=app).order_by('-ended_at')[:5]
+        context = {}
+        context['apps'] = App.objects.filter(owner=request.user)
+        context['app'] = app
+        context['sessions'] = Session.objects.filter(
+            app=app).order_by('-ended_at')[:5]
 
-    # Graph information (Last 30 days for now)
-    thirty = datetime.now() - timedelta(days=30)
-    stats = {}
-    sessions = Session.objects.filter(app=app, started_at__gte=thirty).annotate(day=TruncDay(
-        'started_at')).values('day').annotate(c=Count('id')).values('day', 'c')
-    for session in sessions:
-        stats[session['day']] = {
-            'sessions': session['c'],
-            'visitors': 0,
-        }
-    visitors = Visitor.objects.filter(app=app, registered_at__gte=thirty).annotate(day=TruncDay(
-        'registered_at')).values('day').annotate(c=Count('id')).values('day', 'c')
-    for visitor in visitors:
-        if visitor['day'] not in stats:
-            stats[visitor['day']] = {
-                'sessions': 0,
+        # Graph information (Last 30 days for now)
+        thirty = datetime.now() - timedelta(days=30)
+        stats = {}
+        sessions = Session.objects.filter(app=app, started_at__gte=thirty).annotate(day=TruncDay(
+            'started_at')).values('day').annotate(c=Count('id')).values('day', 'c')
+        for session in sessions:
+            stats[session['day']] = {
+                'sessions': session['c'],
                 'visitors': 0,
             }
-        stats[visitor['day']]['visitors'] = visitor['c']
-    entries = []
-    for day in sorted(stats):
-        entries.append({
-            'day': day,
-            'sessions': stats[day]['sessions'],
-            'visitors': stats[day]['visitors'],
-        })
-    context['stats'] = entries
-
-    # Map Information
-    try:
-        import pycountry
-
-        activities = Activity.objects.filter(app=app, occured_at__gte=thirty).values('country').annotate(c=Count('visitor_id', distinct=True)).values('country', 'c')
-        locations = []
-        min_sessions = 0
-        max_sessions = None
-        for activity in activities:
-            if min_sessions is None or activity['c'] < min_sessions:
-                min_sessions = activity['c']
-            if max_sessions is None or activity['c'] > max_sessions:
-                max_sessions = activity['c']
-
-            locations.append({
-                'country': activity['country'],
-                'alpha_2': pycountry.countries.get(name=activity['country']).alpha_2,
-                'alpha_3': pycountry.countries.get(name=activity['country']).alpha_3,
-                'count': activity['c'],
+        visitors = Visitor.objects.filter(app=app, registered_at__gte=thirty).annotate(day=TruncDay(
+            'registered_at')).values('day').annotate(c=Count('id')).values('day', 'c')
+        for visitor in visitors:
+            if visitor['day'] not in stats:
+                stats[visitor['day']] = {
+                    'sessions': 0,
+                    'visitors': 0,
+                }
+            stats[visitor['day']]['visitors'] = visitor['c']
+        entries = []
+        for day in sorted(stats):
+            entries.append({
+                'day': day,
+                'sessions': stats[day]['sessions'],
+                'visitors': stats[day]['visitors'],
             })
-        for location in locations:
-            if max_sessions > min_sessions:
-                r = (location['count'] - min_sessions) / (max_sessions - min_sessions)
-                r = round(r, 1)
-                location['fill'] = 'FILL{}'.format(r)
-            else:
-                location['fill'] = 'FILL0.7'
-            
-        context['locations'] = locations
-    except ImportError as e:
-        pass
+        context['stats'] = entries
 
-    return render(request, 'femtolytics/dashboard.html', context)
+        # Map Information
+        
+        try:
+            import pycountry
+
+            activities = Activity.objects.filter(app=app, occured_at__gte=thirty).values(
+                'country').annotate(c=Count('visitor_id', distinct=True)).values('country', 'c')
+            locations = []
+            min_sessions = 0
+            max_sessions = None
+            for activity in activities:
+                if activity['country'] is not None:
+                    if min_sessions is None or activity['c'] < min_sessions:
+                        min_sessions = activity['c']
+                    if max_sessions is None or activity['c'] > max_sessions:
+                        max_sessions = activity['c']
+
+                    locations.append({
+                        'country': activity['country'],
+                        'alpha_2': pycountry.countries.get(name=activity['country']).alpha_2,
+                        'alpha_3': pycountry.countries.get(name=activity['country']).alpha_3,
+                        'count': activity['c'],
+                    })
+            for location in locations:
+                if max_sessions > min_sessions:
+                    r = (location['count'] - min_sessions) / \
+                        (max_sessions - min_sessions)
+                    r = round(r, 1)
+                    location['fill'] = 'FILL{}'.format(r)
+                else:
+                    location['fill'] = 'FILL0.7'
+
+            context['locations'] = locations
+        except ImportError as e:
+            pass
+
+        return render(request, self.template_name, context)
 
 
-@login_required
-def visitor(request, id, visitor_id):
-    visitor = get_object_or_404(Visitor, pk=visitor_id)
-    if visitor.app.owner != request.user:
-        return Http404
+class VisitorView(View, LoginRequiredMixin):
+    template_name = 'femtolytics/visitor.html'
 
-    context = {}
-    context['visitor'] = visitor
-    context['sessions'] = Session.objects.filter(
-        visitor=visitor_id).order_by('-ended_at')
-    return render(request, 'femtolytics/visitor.html', context)
+    def get(self, request, app_id, visitor_id):
+        visitor = get_object_or_404(Visitor, pk=visitor_id)
+        if visitor.app.owner != request.user:
+            return Http404
 
-
-@login_required
-def apps(request):
-    context = {}
-    context['apps'] = App.objects.filter(owner=request.user)
-    return render(request, 'femtolytics/apps.html', context)
+        context = {}
+        context['visitor'] = visitor
+        context['sessions'] = Session.objects.filter(
+            visitor=visitor_id).order_by('-ended_at')
+        return render(request, self.template_name, context)
 
 
-@login_required
-def apps_add(request):
-    if request.method == 'POST':
+class AppsView(View, LoginRequiredMixin):
+    template_name = 'femtolytics/apps.html'
+
+    def get(self, request):
+        context = {}
+        context['apps'] = App.objects.filter(owner=request.user)
+        return render(request, self.template_name, context)
+
+
+class AppsAdd(View, LoginRequiredMixin):
+    template_name = 'femtolytics/apps_add.html'
+    success_url = reverse_lazy('femtolytics:apps')
+
+    def get(self, request):
+        context = {}
+        context['form'] = AppForm()
+        return render(request, self.template_name, context)
+    
+    def post(self, request):
         form = AppForm(request.POST)
         if form.is_valid():
             app = form.save(commit=False)
             app.owner = request.user
             app.save()
-            return redirect('femtolytics:apps')
-    context = {}
-    context['form'] = AppForm()
-    return render(request, 'femtolytics/apps_add.html', context)
+            return redirect(self.success_url)
 
-
-@login_required
-def apps_edit(request, id):
-    app = get_object_or_404(App, pk=id)
-    if request.method == 'POST':
+class AppsEdit(View, LoginRequiredMixin):
+    template_name = 'femtolytics/apps_add.html'
+    success_url = reverse_lazy('femtolytics:apps')
+    
+    def get(self, request, app_id):
+        app = get_object_or_404(App, pk=app_id)
+        context = {}
+        context['app'] = app
+        context['form'] = AppForm(instance=app)
+        return render(request, self.template_name, context)
+    
+    def post(self, request, app_id):
+        app = get_object_or_404(App, pk=app_id)
         form = AppForm(request.POST, instance=app)
         if form.is_valid():
             app = form.save()
-            return redirect('femtolytics:apps')     
+            return redirect(self.success_url)
 
-    context = {}
-    context['app'] = app
-    context['form'] = AppForm()
-    return render(request, 'femtolytics/apps_add.html', context)
+class AppsDelete(View, LoginRequiredMixin):
+    success_url = reverse_lazy('femtolytics:apps')
 
-@login_required
-def apps_delete(request, id):
-    app = get_object_or_404(App, pk=id)
-    if app.owner != request.user:
-        raise Http404
-    app.delete()
-    return redirect('femtolytics:apps')
+    def get(self, request, app_id):
+        app = get_object_or_404(App, pk=app_id)
+        if app.owner != request.user:
+            raise Http404
+        app.delete()
+        return redirect(self.success_url)
 
-@login_required
-def sessions(request):
-    apps = App.objects.filter(owner=request.user)
-    if apps.count() == 0:
-        return redirect('femtolytics:apps')
-    
-    return redirect('femtolytics:sessions_by_app', apps[0].id)
 
-@login_required
-def sessions_by_app(request, id):
-    app = get_object_or_404(App, pk=id)
-    if app.owner != request.user:
-        raise Http404
+class SessionsView(View, LoginRequiredMixin):
+    def get(self, request):
+        apps = App.objects.filter(owner=request.user)
+        if apps.count() == 0:
+            return redirect('femtolytics:apps')
 
-    context = {}
-    context['app'] = app
-    context['apps'] = App.objects.filter(owner=request.user)
-    context['sessions'] = Session.objects.filter(app=app).order_by('-ended_at')
-    return render(request, 'femtolytics/sessions.html', context)
+        return redirect('femtolytics:sessions_by_app', apps[0].id)
 
-@login_required
-def session(request, app_id, session_id):
-    app = get_object_or_404(App, pk=app_id)
-    if app.owner != request.user:
-        raise Http404
-    session = get_object_or_404(Session, pk=session_id)
-    if session.app != app:
-        raise Http404
-    context = {}
-    context['session'] = session
-    return render(request, 'femtolytics/session.html', context)
+class SessionsByAppView(View, LoginRequiredMixin):
+    template_name = 'femtolytics/sessions.html'
 
-@login_required
-def visitors(request):
-    apps = App.objects.filter(owner=request.user)
-    if apps.count() == 0:
-        return redirect('femtolytics:apps')
-    
-    return redirect('femtolytics:visitors_by_app', apps[0].id)
+    def get(self, request, app_id):
+        app = get_object_or_404(App, pk=app_id)
+        if app.owner != request.user:
+            raise Http404
 
-@login_required
-def visitors_by_app(request, id):
-    app = get_object_or_404(App, pk=id)
-    if app.owner != request.user:
-        raise Http404
+        context = {}
+        context['app'] = app
+        context['apps'] = App.objects.filter(owner=request.user)
+        context['sessions'] = Session.objects.filter(app=app).order_by('-ended_at')
+        return render(request, self.template_name, context)
 
-    context = {}
-    context['app'] = app
-    context['apps'] = App.objects.filter(owner=request.user)
-    context['visitors'] = Visitor.objects.filter(app=app).order_by('registered_at')
-    return render(request, 'femtolytics/visitors.html', context)
+class SessionView(View, LoginRequiredMixin):
+    template_name = 'femtolytics/session.html'
+
+    def get(self, request, app_id, session_id):
+        app = get_object_or_404(App, pk=app_id)
+        if app.owner != request.user:
+            raise Http404
+        session = get_object_or_404(Session, pk=session_id)
+        if session.app != app:
+            raise Http404
+        context = {}
+        context['session'] = session
+        return render(request, self.template_name, context)
+
+
+class VisitorsView(View, LoginRequiredMixin):
+    def get(self, request):
+        apps = App.objects.filter(owner=request.user)
+        if apps.count() == 0:
+            return redirect('femtolytics:apps')
+
+        return redirect('femtolytics:visitors_by_app', apps[0].id)
+
+class VisitorsByAppView(View, LoginRequiredMixin):
+    template_name = 'femtolytics/visitors.html'
+
+    def get(self, request, app_id):
+        app = get_object_or_404(App, pk=app_id)
+        if app.owner != request.user:
+            raise Http404
+
+        context = {}
+        context['app'] = app
+        context['apps'] = App.objects.filter(owner=request.user)
+        context['visitors'] = Visitor.objects.filter(
+            app=app).order_by('registered_at')
+        return render(request, self.template_name, context)
+
 
 @login_required
 def crashes(request):
@@ -249,7 +282,7 @@ def on_event(request):
     logger.info('{} {}'.format(event['device']
                                ['name'], event['event']['type']))
     remote_ip, city = get_geo_info(request)
-    
+
     for event in body['events']:
         properties = None
         if 'properties' in event['event']:
@@ -290,7 +323,7 @@ def on_action(request):
     logger.info('{} {}'.format(
         action['device']['name'], action['action']['type']))
     remote_ip, city = get_geo_info(request)
-    
+
     for action in body['actions']:
         properties = None
         if 'properties' in action['action']:
