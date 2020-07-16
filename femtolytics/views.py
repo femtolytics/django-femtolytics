@@ -1,5 +1,6 @@
 import json
 import logging
+import pytz
 
 from datetime import datetime, timedelta
 from django.contrib.auth.decorators import login_required
@@ -16,6 +17,7 @@ from rest_framework import authentication, permissions, serializers, status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 
+utc = pytz.UTC
 
 logger = logging.getLogger("femtolytics")
 
@@ -69,9 +71,18 @@ class DashboardByAppView(View, LoginRequiredMixin):
         context['sessions'] = Session.objects.filter(
             app=app).order_by('-ended_at')[:5]
 
+        duration = int(request.GET.get('duration', 30))
         # Graph information (Last 30 days for now)
-        thirty = datetime.now() - timedelta(days=30)
+        thirty = datetime.now() - timedelta(days=duration)
         stats = {}
+        # Create empty entries 
+        for index in range(0, duration):
+            then = thirty + timedelta(days=index)
+            stats[then.replace(tzinfo=utc)] = {
+                'sessions': 0,
+                'visitors': 0,
+            }
+
         sessions = Session.objects.filter(app=app, started_at__gte=thirty).annotate(day=TruncDay(
             'started_at')).values('day').annotate(c=Count('id')).values('day', 'c')
         for session in sessions:
