@@ -78,6 +78,7 @@ class DashboardByAppView(View, LoginRequiredMixin):
         # Create empty entries 
         for index in range(0, duration):
             then = thirty + timedelta(days=index)
+            then = datetime(then.year, then.month, then.day)
             stats[then.replace(tzinfo=utc)] = {
                 'sessions': 0,
                 'visitors': 0,
