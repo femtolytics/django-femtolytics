@@ -2,7 +2,6 @@ import json
 import logging
 
 from datetime import datetime, timedelta
-from dateutil import parser
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models.functions import TruncDay
@@ -12,6 +11,7 @@ from django.urls import reverse_lazy
 from django.views.generic.base import View, TemplateView
 from femtolytics.models import App, Session, Visitor, Activity
 from femtolytics.forms import AppForm
+from femtolytics.handler import Handler
 from rest_framework import authentication, permissions, serializers, status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
@@ -272,64 +272,6 @@ def crashes(request):
     pass
 
 
-def on_event(event, remote_ip=None, city=None):
-    properties = None
-    if 'properties' in event['event']:
-        properties = json.dumps(event['event']['properties'])
-    event['event_time'] = parser.parse(event['event']['time'])
-
-    app, visitor, session = Activity.find_app_visitor_session(event)
-    if app is None:
-        raise Http404
-    activity = Activity.objects.create(
-        visitor=visitor,
-        session=session,
-        app=app,
-        category=Activity.EVENT,
-        activity_type=event['event']['type'],
-        properties=properties,
-        occured_at=event['event_time'],
-        device_name=event['device']['name'],
-        device_os=event['device']['os'],
-        package_name=event['package']['name'],
-        package_version=event['package']['version'],
-        package_build=event['package']['build'],
-        remote_ip=remote_ip if remote_ip is not None else None,
-        city=city['city'] if city is not None else None,
-        region=city['region'] if city is not None and 'region' in city else None,
-        country=city['country_name'] if city is not None else None,
-    )
-    return activity
-
-def on_action(action, remote_ip=None, city=None):
-    properties = None
-    if 'properties' in action['action']:
-        properties = json.dumps(action['action']['properties'])
-    action['event_time'] = parser.parse(action['action']['time'])
-
-    app, visitor, session = Activity.find_app_visitor_session(action)
-    if app is None:
-        raise Http404
-    activity = Activity.objects.create(
-        visitor=visitor,
-        session=session,
-        app=app,
-        category=Activity.ACTION,
-        activity_type=action['action']['type'],
-        properties=properties,
-        occured_at=action['event_time'],
-        device_name=action['device']['name'],
-        device_os=action['device']['os'],
-        package_name=action['package']['name'],
-        package_version=action['package']['version'],
-        package_build=action['package']['build'],
-        remote_ip=remote_ip if remote_ip is not None else None,
-        city=city['city'] if city is not None else None,
-        region=city['region'] if city is not None and 'region' in city else None,
-        country=city['country_name'] if city is not None else None,
-    )
-
-
 @api_view(['POST'])
 @permission_classes((permissions.AllowAny,))
 def on_event(request):
@@ -342,7 +284,9 @@ def on_event(request):
     remote_ip, city = get_geo_info(request)
 
     for event in body['events']:
-        on_event(event, remote_ip=remote_ip, city=city)
+        activity = Handler.on_event(event, remote_ip=remote_ip, city=city)
+        if activity is None:
+            raise Http404
 
     return Response({'status': 'ok'})
 
@@ -358,6 +302,8 @@ def on_action(request):
     remote_ip, city = get_geo_info(request)
 
     for action in body['actions']:
-        on_action(action, remote_ip=remote_ip, city=city)
+        activity = Handler.on_action(action, remote_ip=remote_ip, city=city)
+        if activity is None:
+            raise Http404
 
     return Response({'status': 'ok'})

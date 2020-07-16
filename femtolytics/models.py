@@ -1,10 +1,13 @@
 import json
 import logging
 import uuid
+import pytz
 
 from datetime import datetime, timedelta
 from django.contrib.auth import get_user_model
 from django.db import models
+
+utc = pytz.UTC
 
 User = get_user_model()
 
@@ -151,7 +154,8 @@ class Activity(BaseModel):
         visitor, created = Visitor.objects.get_or_create(
             id=event_or_action['visitor_id'], app=app)
         logger.debug(f'    -> Visitor {visitor.id}')
-        if visitor.registered_at > event_time:
+        
+        if visitor.registered_at.replace(tzinfo=utc) > event_time.replace(tzinfo=utc):
             visitor.registered_at = event_time
             visitor.save()
 
