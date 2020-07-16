@@ -86,7 +86,7 @@ class DashboardByAppView(View, LoginRequiredMixin):
         sessions = Session.objects.filter(app=app, started_at__gte=thirty).annotate(day=TruncDay(
             'started_at')).values('day').annotate(c=Count('id')).values('day', 'c')
         for session in sessions:
-            stats[session['day']] = {
+            stats[session['day'].replace(tzinfo=utc)] = {
                 'sessions': session['c'],
                 'visitors': 0,
             }
@@ -94,7 +94,7 @@ class DashboardByAppView(View, LoginRequiredMixin):
             'registered_at')).values('day').annotate(c=Count('id')).values('day', 'c')
         for visitor in visitors:
             if visitor['day'] not in stats:
-                stats[visitor['day']] = {
+                stats[visitor['day'].replace(tzinfo=utc)] = {
                     'sessions': 0,
                     'visitors': 0,
                 }
