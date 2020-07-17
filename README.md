@@ -2,7 +2,7 @@
  
 This is the open-source code used for [femtolytics.com](https://femtolytics.com). With this django package you can run your own instance of femtolytics and not depend on any third-party tracking for understanding how people use your mobile application.
 
-You can find a Flutter client for femtolytics at [https://pub.dev/femtolytics](https://pub.dev/femtolytics)
+You can find a Flutter client for femtolytics at [https://pub.dev/packages/femtolytics](https://pub.dev/packages/femtolytics)
 
 ## Getting Started
 
