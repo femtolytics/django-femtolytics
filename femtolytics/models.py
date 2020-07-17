@@ -182,7 +182,7 @@ class Activity(BaseModel):
                 ended_at=event_time,
             )
         else:
-            delta = event_time - session.ended_at
+            delta = event_time.replace(tzinfo=utc) - session.ended_at.replace(tzinfo=utc)
             if delta.total_seconds() > 3600:
                 # This is a new session
                 session = Session.objects.create(
@@ -194,9 +194,9 @@ class Activity(BaseModel):
 
         logger.debug(
             f'    -> Session {session.short_id} {session.started_at} {session.ended_at}')
-        if session.started_at > event_time:
+        if session.started_at.replace(tzinfo=utc) > event_time.replace(tzinfo=utc):
             session.started_at = event_time
-        if session.ended_at < event_time:
+        if session.ended_at.replace(tzinfo=utc) < event_time.replace(tzinfo=utc):
             session.ended_at = event_time
         session.save()
         return app, visitor, session
