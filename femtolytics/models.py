@@ -61,7 +61,8 @@ class Session(BaseModel):
                 period_value, seconds = divmod(seconds, period_seconds)
                 has_s = 's' if period_value > 1 else ''
                 strings.append("%s %s%s" % (period_value, period_name, has_s))
-
+        if len(strings) == 0:
+            strings.append("0 seconds")
         return ", ".join(strings)
 
     @property
@@ -129,7 +130,7 @@ class Activity(BaseModel):
             elif self.activity_type == 'NEW_USER':
                 return props['visitor_id']
             elif self.activity_type == 'CRASH':
-                return props['exception']
+                return props['exception'].split("\n")[0]
         return json.dumps(props, indent=2, sort_keys=True)
 
     @property

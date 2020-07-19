@@ -3,6 +3,7 @@ import logging
 import pytz
 
 from datetime import datetime, timedelta
+from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models.functions import TruncDay
@@ -68,30 +69,34 @@ class DashboardByAppView(View, LoginRequiredMixin):
         context = {}
         context['apps'] = App.objects.filter(owner=request.user)
         context['app'] = app
+        
+        # Last 5 sessions
         context['sessions'] = Session.objects.filter(
             app=app).order_by('-ended_at')[:5]
 
+        # Graph information (Last `duration` days for now)
         duration = int(request.GET.get('duration', 30))
-        # Graph information (Last 30 days for now)
-        thirty = datetime.now() - timedelta(days=duration)
+        period_start = datetime.now() - timedelta(days=duration)
         stats = {}
         # Create empty entries 
         for index in range(0, duration):
-            then = thirty + timedelta(days=index)
+            then = period_start + timedelta(days=index)
             then = datetime(then.year, then.month, then.day)
             stats[then.replace(tzinfo=utc)] = {
                 'sessions': 0,
                 'visitors': 0,
             }
-
-        sessions = Session.objects.filter(app=app, started_at__gte=thirty).annotate(day=TruncDay(
+        # SELECT COUNT(*) AS c, DATE(started_at) AS day FROM sessions GROUP BY day
+        sessions = Session.objects.filter(app=app, started_at__gte=period_start).annotate(day=TruncDay(
             'started_at')).values('day').annotate(c=Count('id')).values('day', 'c')
         for session in sessions:
             stats[session['day'].replace(tzinfo=utc)] = {
                 'sessions': session['c'],
                 'visitors': 0,
             }
-        visitors = Visitor.objects.filter(app=app, registered_at__gte=thirty).annotate(day=TruncDay(
+        context['session_count'] = sessions.count()
+        # SELECT COUNT(*) AS c, DATE(registered_at) AS day FROM visitors GROUP BY day
+        visitors = Visitor.objects.filter(app=app, registered_at__gte=period_start).annotate(day=TruncDay(
             'registered_at')).values('day').annotate(c=Count('id')).values('day', 'c')
         for visitor in visitors:
             if visitor['day'].replace(tzinfo=utc) not in stats:
@@ -100,6 +105,8 @@ class DashboardByAppView(View, LoginRequiredMixin):
                     'visitors': 0,
                 }
             stats[visitor['day'].replace(tzinfo=utc)]['visitors'] = visitor['c']
+        context['visitor_count'] = visitors.count()
+        # Organize entries to be easily graphed.
         entries = []
         for day in sorted(stats):
             entries.append({
@@ -109,12 +116,11 @@ class DashboardByAppView(View, LoginRequiredMixin):
             })
         context['stats'] = entries
 
-        # Map Information
-        
+        # Map Information        
         try:
             import pycountry
-
-            activities = Activity.objects.filter(app=app, occured_at__gte=thirty).values(
+            # SELECT COUNT(DISTINCT(visitor_id)) AS c, country FROM activity GROUP BY country
+            activities = Activity.objects.filter(app=app, occured_at__gte=period_start).values(
                 'country').annotate(c=Count('visitor_id', distinct=True)).values('country', 'c')
             locations = []
             min_sessions = 0
@@ -143,7 +149,28 @@ class DashboardByAppView(View, LoginRequiredMixin):
 
             context['locations'] = locations
         except ImportError as e:
+            # pycountry unavailable, ignore silently
             pass
+
+        # Compute 30-DAU
+        thirty = datetime.now() - timedelta(days=30)
+        min_sessions = 2
+        if hasattr(settings, 'FEMTOLYTICS_30DAU_SESSIONS_THRESHOLD'):
+            min_sessions = settings.FEMTOLYTICS_30DAU_SESSIONS_THRESHOLD
+
+        activities = Activity.objects.filter(app=app, occured_at__gte=thirty).values(
+            'visitor_id').annotate(c=Count('session_id', distinct=True)).filter(c__gt=2).values('visitor_id', 'c')
+        context['30dau'] = activities.count()
+
+        # Compute 7-DAU
+        seven = datetime.now() - timedelta(days=7)
+        min_sessions = 2
+        if hasattr(settings, 'FEMTOLYTICS_7DAU_SESSIONS_THRESHOLD'):
+            min_sessions = settings.FEMTOLYTICS_7DAU_SESSIONS_THRESHOLD
+
+        activities = Activity.objects.filter(app=app, occured_at__gte=seven).values(
+            'visitor_id').annotate(c=Count('session_id', distinct=True)).filter(c__gt=2).values('visitor_id', 'c')
+        context['7dau'] = activities.count()
 
         return render(request, self.template_name, context)
 

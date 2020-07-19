@@ -22,14 +22,14 @@
             <tbody>
                 {% for activity in session.sorted_activities %}
                 <tr>
-                    <td style="width: 120px!important;">{% if activity.analyzed_type == 'VIEW' %}<i class="far fa-eye"></i>{% elif activity.analyzed_type == 'CRASH' %}<i class="fal fa-car-crash"></i>{% else %}{{ activity.analyzed_type }}{% endif %}</td>
+                    <td style="width: 120px!important;">{{ activity.analyzed_type }}</td>
                     <td>
                         {% if activity.properties %}
-                        <span style="white-space: pre;">{{ activity.analyzed_properties }}</span>
+                            <span style="white-space: pre-line;">{{ activity.analyzed_properties }}</span>
                         {% endif %}
                         {% if activity.extended_properties %}
                         <a href="#" onclick="$('#{{ activity.id }}').toggle(); return false;"><i class="fas fa-chevron-down"></i></a>
-                        <div id="{{ activity.id }}" style="display: none; white-space: pre;">{{ activity.extended_properties }}</div>
+                        <div id="{{ activity.id }}" style="display: none; white-space: pre-line;">{{ activity.extended_properties }}</div>
                         {% endif %}
                     </td>
                     <td class="text-muted text-center" style="width: 80px!important;"><small>{{ activity.occured_at|date:'H:i:s' }}</small></td>
