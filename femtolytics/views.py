@@ -50,12 +50,15 @@ def get_geo_info(request):
 
 
 class DashboardView(View, LoginRequiredMixin):
+    success_url = 'femtolytics:dashboards_by_app'
+    failed_url = 'femtolytics:apps'
+    
     def get(self, request):
         apps = App.objects.filter(owner=request.user)
         if apps.count() == 0:
-            return redirect('femtolytics:apps')
+            return redirect(self.failed_url)
         else:
-            return redirect('femtolytics:dashboards_by_app', apps[0].id)
+            return redirect(self.success_url, apps[0].id)
     
 
 class DashboardByAppView(View, LoginRequiredMixin):
@@ -246,12 +249,15 @@ class AppsDelete(View, LoginRequiredMixin):
 
 
 class SessionsView(View, LoginRequiredMixin):
+    success_url = 'femtolytics:sessions_by_app'
+    failed_url = 'femtolytics:apps'
+    
     def get(self, request):
         apps = App.objects.filter(owner=request.user)
         if apps.count() == 0:
-            return redirect('femtolytics:apps')
+            return redirect(self.failed_url)
 
-        return redirect('femtolytics:sessions_by_app', apps[0].id)
+        return redirect(self.success_url, apps[0].id)
 
 class SessionsByAppView(View, LoginRequiredMixin):
     template_name = 'femtolytics/sessions.html'
@@ -283,12 +289,15 @@ class SessionView(View, LoginRequiredMixin):
 
 
 class VisitorsView(View, LoginRequiredMixin):
+    success_url = 'femtolytics:visitors_by_app'
+    failed_url = 'femtolytics:apps'
+
     def get(self, request):
         apps = App.objects.filter(owner=request.user)
         if apps.count() == 0:
-            return redirect('femtolytics:apps')
+            return redirect(self.failed_url)
 
-        return redirect('femtolytics:visitors_by_app', apps[0].id)
+        return redirect(self.success_url, apps[0].id)
 
 class VisitorsByAppView(View, LoginRequiredMixin):
     template_name = 'femtolytics/visitors.html'

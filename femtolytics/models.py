@@ -29,7 +29,7 @@ class BaseModel(models.Model):
 
 class App(BaseModel):
     owner = models.ForeignKey(User, on_delete=models.CASCADE)
-    package_name = models.CharField(max_length=255, db_index=True)
+    package_name = models.CharField(max_length=255, db_index=True, unique=True)
 
 
 class Visitor(BaseModel):
@@ -94,8 +94,6 @@ class Activity(BaseModel):
     package_version = models.CharField(max_length=255, db_index=True)
     package_build = models.CharField(max_length=255)
 
-    remote_ip = models.CharField(
-        max_length=255, blank=True, null=True, default=None)
     city = models.CharField(max_length=255, blank=True,
                             null=True, default=None)
     region = models.CharField(

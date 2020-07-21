@@ -1,9 +1,17 @@
 import json
 
 from dateutil import parser
+from django.conf import settings
 from femtolytics.models import Activity
 
 class Handler:
+    @classmethod
+    def log_city(cls):
+        log_city = False
+        if hasattr(settings, 'FEMTOLYTICS_LOG_CITY'):
+            log_city = settings.FEMTOLYTICS_LOG_CITY
+        return log_city
+
     @classmethod
     def on_event(cls, event, remote_ip=None, city=None):
         properties = None
@@ -27,8 +35,7 @@ class Handler:
             package_name=event['package']['name'],
             package_version=event['package']['version'],
             package_build=event['package']['build'],
-            remote_ip=remote_ip if remote_ip is not None else None,
-            city=city['city'] if city is not None else None,
+            city=city['city'] if city is not None and Handler.log_city() else None,
             region=city['region'] if city is not None and 'region' in city else None,
             country=city['country_name'] if city is not None else None,
         )
@@ -57,8 +64,7 @@ class Handler:
             package_name=action['package']['name'],
             package_version=action['package']['version'],
             package_build=action['package']['build'],
-            remote_ip=remote_ip if remote_ip is not None else None,
-            city=city['city'] if city is not None else None,
+            city=city['city'] if city is not None and Handler.log_city() else None,
             region=city['region'] if city is not None and 'region' in city else None,
             country=city['country_name'] if city is not None else None,
         )
