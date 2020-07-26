@@ -16,5 +16,5 @@ urlpatterns = [
      path('visitors', views.VisitorsView.as_view(), name='visitors'),
      path('visitors/<uuid:app_id>', views.VisitorsByAppView.as_view(), name='visitors_by_app'),
      path('visitors/<uuid:app_id>/<uuid:visitor_id>', views.VisitorView.as_view(), name='visitor'),
-     path('crashes', views.crashes, name='crashes'),
+     # path('crashes', views.crashes, name='crashes'),
 ]

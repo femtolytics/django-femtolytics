@@ -187,6 +187,11 @@ class AppsAdd(View, LoginRequiredMixin):
             app.owner = request.user
             app.save()
             return redirect(self.success_url)
+        else:
+            context = {}
+            context['form'] = form
+            return render(request, self.template_name, context)
+
 
 class AppsEdit(View, LoginRequiredMixin):
     template_name = 'femtolytics/apps_add.html'

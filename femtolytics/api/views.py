@@ -12,6 +12,9 @@ logger = logging.getLogger("femtolytics")
 class EventView(APIView):
     permission_classes = [permissions.AllowAny]
 
+    def ignore(self, app, visitor, session):
+        return False
+
     def post(self, request, format=None):
         body_unicode = request.body.decode('utf-8')
         body = json.loads(body_unicode)
@@ -21,8 +24,10 @@ class EventView(APIView):
                                 ['name'], event['event']['type']))
         remote_ip, city = get_geo_info(request)
 
+        callback=lambda app, visitor, session: self.ignore(app, visitor, session)
+
         for event in body['events']:
-            activity = Handler.on_event(event, remote_ip=remote_ip, city=city)
+            activity = Handler.on_event(event, remote_ip=remote_ip, city=city, ignore=callback)
             if activity is None:
                 raise Http404
 
@@ -32,6 +37,9 @@ class EventView(APIView):
 class ActionView(APIView):
     permission_classes = [permissions.AllowAny]
 
+    def ignore(self, app, visitor, session):
+        return False
+
     def post(self, request, format=None):
         body_unicode = request.body.decode('utf-8')
         body = json.loads(body_unicode)
@@ -39,9 +47,11 @@ class ActionView(APIView):
         logger.info('{} {}'.format(
             action['device']['name'], action['action']['type']))
         remote_ip, city = get_geo_info(request)
-
+        
+        callback=lambda app, visitor, session: self.ignore(app, visitor, session)
+        
         for action in body['actions']:
-            activity = Handler.on_action(action, remote_ip=remote_ip, city=city)
+            activity = Handler.on_action(action, remote_ip=remote_ip, city=city, ignore=callback)
             if activity is None:
                 raise Http404
 

@@ -13,7 +13,7 @@ class Handler:
         return log_city
 
     @classmethod
-    def on_event(cls, event, remote_ip=None, city=None):
+    def on_event(cls, event, remote_ip=None, city=None, ignore=None):
         properties = None
         if 'properties' in event['event']:
             properties = json.dumps(event['event']['properties'])
@@ -21,6 +21,8 @@ class Handler:
 
         app, visitor, session = Activity.find_app_visitor_session(event)
         if app is None:
+            return None
+        if ignore is not None and ignore(app, visitor, session):
             return None
         activity = Activity.objects.create(
             visitor=visitor,
@@ -42,7 +44,7 @@ class Handler:
         return activity
 
     @classmethod
-    def on_action(cls, action, remote_ip=None, city=None):
+    def on_action(cls, action, remote_ip=None, city=None, ignore=None):
         properties = None
         if 'properties' in action['action']:
             properties = json.dumps(action['action']['properties'])
@@ -50,6 +52,8 @@ class Handler:
 
         app, visitor, session = Activity.find_app_visitor_session(action)
         if app is None:
+            return None
+        if ignore is not None and ignore(app, visitor, session):
             return None
         activity = Activity.objects.create(
             visitor=visitor,

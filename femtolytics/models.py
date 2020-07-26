@@ -1,7 +1,8 @@
 import json
 import logging
-import uuid
 import pytz
+import random
+import uuid
 
 from datetime import datetime, timedelta
 from django.contrib.auth import get_user_model
@@ -33,8 +34,141 @@ class App(BaseModel):
 
 
 class Visitor(BaseModel):
+    ADJECTIVES = [
+        'Happy',
+        'Loved',
+        'Content',
+        'Amused',
+        'Joyed',
+        'Proud',
+        'Excited',
+        'Satisfied',
+        'Compassoinate',
+        'Lonely',
+        'Heartbroken',
+        'Gloomy',
+        'Disappointed',
+        'Hopeless',
+        'Grieved',
+        'Unhappy',
+        'Lost',
+        'Troubled',
+        'Resigned',
+        'Miserable',
+        'Worried',
+        'Doubtful',
+        'Nervous',
+        'Anxious',
+        'Terrified',
+        'Panicked',
+        'Horrified',
+        'Desperate',
+        'Confused',
+        'Stressed',
+        'Annoyed',
+        'Frustrated',
+        'Peeved',
+        'Contrary',
+        'Bitter',
+        'Infuriated',
+        'Irritated',
+        'Mad',
+        'Cheated',
+        'Vengeful',
+        'Insulted',
+        'Loathing',
+        'Disapproving',
+        'Offended',
+        'Horrified',
+        'Uncomfortable',
+        'Nauseated',
+        'Disturbed',
+        'Withdrawn',
+    ]
+    ANIMALS = [
+        'Alligator',
+        'Anteater',
+        'Armadillo',
+        'Aurochs',
+        'Axolotl',
+        'Badger',
+        'Bat',
+        'Beaver',
+        'Buffalo',
+        'Camel',
+        'Capybara',
+        'Chameleon',
+        'Cheetah',
+        'Chinchilla',
+        'Chipmunk',
+        'Chupacabra',
+        'Cormorant',
+        'Coyote',
+        'Crow',
+        'Dingo',
+        'Dinosaur',
+        'Dolphin',
+        'Duck',
+        'Elephant',
+        'Ferret',
+        'Fox',
+        'Frog',
+        'Giraffe',
+        'Gopher',
+        'Grizzly',
+        'Hedgehog',
+        'Hippo',
+        'Hyena',
+        'Ibex',
+        'Ifrit',
+        'Iguana',
+        'Jackal',
+        'Jackalope',
+        'Kangaroo',
+        'Koala',
+        'Kraken',
+        'Lemur',
+        'Leopard',
+        'Liger',
+        'Llama',
+        'Manatee',
+        'Mink',
+        'Monkey',
+        'Moose',
+        'Narwhal',
+        'Nyan Cat',
+        'Orangutan',
+        'Otter',
+        'Panda',
+        'Penguin',
+        'Platypus',
+        'Pumpkin',
+        'Python',
+        'Quagga',
+        'Rabbit',
+        'Racoon',
+        'Rhino',
+        'Sheep',
+        'Shrew',
+        'Skunk',
+        'Slow Loris',
+        'Squirrel',
+        'Tiger',
+        'Turtle',
+        'Walrus',
+        'Wolf',
+        'Wolverine',
+        'Wombat',
+    ]
     registered_at = models.DateTimeField(default=datetime.now)
     app = models.ForeignKey(App, on_delete=models.CASCADE)
+
+    @property
+    def name(self):
+        random.seed(self.id)
+        a = random.randint(0, len(Visitor.ADJECTIVES))
+        b = random.randint(0, len(Visitor.ANIMALS))
+        return '{}{}'.format(Visitor.ADJECTIVES[a], Visitor.ANIMALS[b])
 
 
 class Session(BaseModel):
@@ -112,6 +246,14 @@ class Activity(BaseModel):
     @property
     def location(self):
         return f"{self.city} {self.country}" if self.city is not None else ""
+
+    @property
+    def is_event(self):
+        return self.category == Activity.EVENT
+    
+    @property
+    def is_action(self):
+        return self.category == Activity.ACTION
 
     @property
     def analyzed_type(self):
