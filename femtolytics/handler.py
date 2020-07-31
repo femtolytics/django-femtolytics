@@ -31,7 +31,7 @@ class Handler:
 
     @classmethod
     def valid_action(cls, action):
-        return Handler.valid_event_or_action(event, 'action')
+        return Handler.valid_event_or_action(action, 'action')
 
     @classmethod
     def valid_event_or_action(cls, event_or_action, key):
@@ -39,7 +39,7 @@ class Handler:
             return False
         if 'type' not in event_or_action[key] or 'time' not in event_or_action[key]:
             return False
-        if not isinstance(event_or_action['event']['time'], str):
+        if not isinstance(event_or_action[key]['time'], str):
             return False
         if 'package' not in event_or_action:
             return False
