@@ -1,6 +1,7 @@
 import logging
 import json 
 
+from django.http import HttpResponse, Http404
 from femtolytics.handler import Handler
 from rest_framework import authentication, permissions, serializers, status
 from rest_framework.decorators import api_view, permission_classes
@@ -17,9 +18,19 @@ class EventView(APIView):
 
     def post(self, request, format=None):
         body_unicode = request.body.decode('utf-8')
-        body = json.loads(body_unicode)
+        try:
+            body = json.loads(body_unicode)
+        except json.decoder.JSONDecodeError:
+            return HttpResponse(status=400)
+
+        if 'events' not in body:
+            return HttpResponse(status=400)
+        if len(body['events']) == 0:
+            return Response({'status': 'ok'})
 
         event = body['events'][0]
+        if not Handler.valid_event(event):
+            return HttpResponse(status=400)
         logger.info('{} {}'.format(event['device']
                                 ['name'], event['event']['type']))
         remote_ip, city = get_geo_info(request)
@@ -27,9 +38,14 @@ class EventView(APIView):
         callback=lambda app, visitor, session: self.ignore(app, visitor, session)
 
         for event in body['events']:
-            activity = Handler.on_event(event, remote_ip=remote_ip, city=city, ignore=callback)
+            activity, result = Handler.on_event(event, remote_ip=remote_ip, city=city, ignore=callback)
             if activity is None:
-                raise Http404
+                if result == Handler.INVALID:
+                    return HttpResponse(status=400)
+                elif result == Handler.IGNORE:
+                    return HttpResponse(status=402)
+                else:
+                    raise Http404
 
         return Response({'status': 'ok'})
 
@@ -42,8 +58,20 @@ class ActionView(APIView):
 
     def post(self, request, format=None):
         body_unicode = request.body.decode('utf-8')
-        body = json.loads(body_unicode)
+        try:
+            body = json.loads(body_unicode)
+        except json.decoder.JSONDecodeError:
+            return HttpResponse(status=400)
+
+        if 'actions' not in body:
+            return HttpResponse(status=400)
+        if len(body['actions']) == 0:
+            return Response({'status': 'ok'})
+
         action = body['actions'][0]
+        if not Handler.valid_action(action):
+            return HttpResponse(status=400)
+
         logger.info('{} {}'.format(
             action['device']['name'], action['action']['type']))
         remote_ip, city = get_geo_info(request)
@@ -51,9 +79,14 @@ class ActionView(APIView):
         callback=lambda app, visitor, session: self.ignore(app, visitor, session)
         
         for action in body['actions']:
-            activity = Handler.on_action(action, remote_ip=remote_ip, city=city, ignore=callback)
+            activity, result = Handler.on_action(action, remote_ip=remote_ip, city=city, ignore=callback)
             if activity is None:
-                raise Http404
+                if result == Handler.INVALID:
+                    return HttpResponse(status=400)
+                elif result == Handler.IGNORE:
+                    return HttpResponse(status=402)
+                else:
+                    raise Http404
 
         return Response({'status': 'ok'})
 

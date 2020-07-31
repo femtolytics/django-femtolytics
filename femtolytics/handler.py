@@ -4,7 +4,13 @@ from dateutil import parser
 from django.conf import settings
 from femtolytics.models import Activity
 
+
 class Handler:
+    SUCCESS = 0
+    APP_NOT_FOUND = 1
+    IGNORE = 2
+    INVALID = 3
+
     @classmethod
     def log_city(cls):
         log_city = False
@@ -13,17 +19,53 @@ class Handler:
         return log_city
 
     @classmethod
+    def valid_event(cls, event):
+        if not Handler.valid_event_or_action(event, 'event'):
+            return False
+        if event['event']['type'] not in ['VIEW', 'NEW_USER', 'CRASH', 'GOAL']:
+            return False
+        return True
+
+    @classmethod
+    def valid_action(cls, action):
+        return Handler.valid_event_or_action(event, 'action')
+
+    @classmethod
+    def valid_event_or_action(cls, event_or_action, key):
+        if key not in event_or_action:
+            return False
+        if 'type' not in event_or_action[key] or 'time' not in event_or_action[key]:
+            return False
+        if not isinstance(event_or_action['event']['time'], str):
+            return False
+        if 'package' not in event_or_action:
+            return False
+        if 'name' not in event_or_action['package'] or 'version' not in event_or_action['package'] or 'build' not in event_or_action['package']:
+            return False
+        if 'device' not in event_or_action:
+            return False
+        if 'name' not in event_or_action['device'] or 'os' not in event_or_action['device']:
+            return False
+        return True
+
+    @classmethod
     def on_event(cls, event, remote_ip=None, city=None, ignore=None):
+        if not Handler.valid_event(event):
+            return None, Handler.INVALID
+
         properties = None
         if 'properties' in event['event']:
             properties = json.dumps(event['event']['properties'])
-        event['event_time'] = parser.parse(event['event']['time'])
+        try:
+            event['event_time'] = parser.parse(event['event']['time'])
+        except parser._parser.ParserError:
+            return None, Handler.INVALID
 
         app, visitor, session = Activity.find_app_visitor_session(event)
         if app is None:
-            return None
+            return None, Handler.APP_NOT_FOUND
         if ignore is not None and ignore(app, visitor, session):
-            return None
+            return None, Handler.IGNORE
         activity = Activity.objects.create(
             visitor=visitor,
             session=session,
@@ -41,20 +83,26 @@ class Handler:
             region=city['region'] if city is not None and 'region' in city else None,
             country=city['country_name'] if city is not None else None,
         )
-        return activity
+        return activity, Handler.SUCCESS
 
     @classmethod
     def on_action(cls, action, remote_ip=None, city=None, ignore=None):
+        if not Handler.valid_action(action):
+            return None, Handler.INVALID
+
         properties = None
         if 'properties' in action['action']:
             properties = json.dumps(action['action']['properties'])
-        action['event_time'] = parser.parse(action['action']['time'])
+        try:
+            action['event_time'] = parser.parse(action['action']['time'])
+        except parser._parser.ParserError:
+            return None, Handler.INVALID
 
         app, visitor, session = Activity.find_app_visitor_session(action)
         if app is None:
-            return None
+            return None, Handler.APP_NOT_FOUND
         if ignore is not None and ignore(app, visitor, session):
-            return None
+            return None, Handler.IGNORE
         activity = Activity.objects.create(
             visitor=visitor,
             session=session,
@@ -72,4 +120,4 @@ class Handler:
             region=city['region'] if city is not None and 'region' in city else None,
             country=city['country_name'] if city is not None else None,
         )
-        return activity
+        return activity, Handler.SUCCESS
