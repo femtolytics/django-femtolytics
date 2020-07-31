@@ -1,4 +1,5 @@
 import json
+import uuid
 
 from dateutil import parser
 from django.conf import settings
@@ -46,6 +47,14 @@ class Handler:
             return False
         if 'name' not in event_or_action['device'] or 'os' not in event_or_action['device']:
             return False
+        if 'visitor_id' not in event_or_action:
+            return False
+        input_form = 'int' if isinstance(event_or_action['visitor_id'], int) else 'hex'
+        try:
+            return uuid.UUID(**{input_form: event_or_action['visitor_id']})
+        except (AttributeError, ValueError):
+            return False
+
         return True
 
     @classmethod
