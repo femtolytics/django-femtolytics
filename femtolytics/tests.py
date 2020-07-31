@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from django.contrib.auth import get_user_model
 from django.test import Client, TestCase
 from django.urls import reverse
+from django.utils import timezone
 from femtolytics.models import App, Activity, Session, Visitor
 
 User = get_user_model()
@@ -23,7 +24,7 @@ class FindAppVisitorSessionTestCase(TestCase):
             owner=self.owner,
             package_name=self.package_name,
         )
-        self.now = datetime.utcnow().replace(tzinfo=utc)
+        self.now = timezone.now()
         self.visitor_id = str(uuid.uuid4())
 
     def test_app_not_found(self):
@@ -214,7 +215,7 @@ class EventApiTestCase(TestCase):
             package_name=self.package_name,
         )
         self.client = Client()
-        self.now = datetime.utcnow()
+        self.now = timezone.now()
         self.visitor_id = str(uuid.uuid4())
 
     def test_empty(self):

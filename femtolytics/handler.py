@@ -3,8 +3,10 @@ import uuid
 
 from dateutil import parser
 from django.conf import settings
-from femtolytics.models import Activity
+from django.utils import timezone
+from django.utils.timezone import is_aware, make_aware
 
+from femtolytics.models import Activity
 
 class Handler:
     SUCCESS = 0
@@ -67,6 +69,8 @@ class Handler:
             properties = json.dumps(event['event']['properties'])
         try:
             event['event_time'] = parser.parse(event['event']['time'])
+            if not is_aware(event['event_time']):
+                event['event_time'] = make_aware(event['event_time'])
         except parser._parser.ParserError:
             return None, Handler.INVALID
 
@@ -104,6 +108,8 @@ class Handler:
             properties = json.dumps(action['action']['properties'])
         try:
             action['event_time'] = parser.parse(action['action']['time'])
+            if not is_aware(action['event_time']):
+                action['event_time'] = make_aware(action['event_time'])
         except parser._parser.ParserError:
             return None, Handler.INVALID
 
