@@ -162,13 +162,15 @@ class Visitor(BaseModel):
     ]
     registered_at = models.DateTimeField(default=datetime.now)
     app = models.ForeignKey(App, on_delete=models.CASCADE)
+    # First session can be used in the list of sessions to tell whether the visitor is a returning or not.
+    first_session = models.ForeignKey('Session', related_name='first_visitor', on_delete=models.CASCADE, default=None, null=True, blank=True)
 
     @property
     def name(self):
         random.seed(self.id)
         a = random.randint(0, len(Visitor.ADJECTIVES))
         b = random.randint(0, len(Visitor.ANIMALS))
-        return '{}{}'.format(Visitor.ADJECTIVES[a], Visitor.ANIMALS[b])
+        return '{} {}'.format(Visitor.ADJECTIVES[a], Visitor.ANIMALS[b])
 
 
 class Session(BaseModel):
@@ -300,14 +302,13 @@ class Activity(BaseModel):
             visitor.registered_at = event_time
             visitor.save()
 
-        # that activity might have out of order, so look for a session around the actitiy time
+        # that activity may be out of order, so look for a session around the actitiy time
         from_time = event_time + timedelta(hours=1)
         to_time = event_time - timedelta(hours=1)
         logger.debug(
             f'        Looking for sessions started_at <= {from_time} and ended_at >= {to_time}')
         sessions = Session.objects.filter(app=app,
             visitor=visitor, started_at__lte=from_time, ended_at__gte=to_time).order_by('-started_at')
-        # session = Session.objects.filter(visitor=visitor).order_by('started_at').first()
         for session in sessions:
             logger.debug(
                 f'        * {session.short_id} {session.started_at} {session.ended_at} {event_time}')
@@ -340,6 +341,12 @@ class Activity(BaseModel):
         if session.ended_at.replace(tzinfo=utc) < event_time.replace(tzinfo=utc):
             session.ended_at = event_time
         session.save()
+
+        # Keep track of the first session.
+        if visitor.first_session is None or visitor.first_session.started_at.replace(tzinfo=utc) > session.started_at.replace(tzinfo=utc):
+            visitor.first_session = session
+            visitor.save()
+
         return app, visitor, session
 
     class Meta:

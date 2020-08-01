@@ -44,7 +44,7 @@ class DashboardByAppView(View, LoginRequiredMixin):
         
         # Last 5 sessions
         context['sessions'] = Session.objects.filter(
-            app=app).order_by('-ended_at')[:5]
+            app=app).prefetch_related('visitor').order_by('-ended_at')[:5]
 
         # Graph information (Last `duration` days for now)
         duration = int(request.GET.get('duration', 30))
@@ -158,7 +158,7 @@ class VisitorView(View, LoginRequiredMixin):
         context = {}
         context['visitor'] = visitor
         context['sessions'] = Session.objects.filter(
-            visitor=visitor_id).order_by('-ended_at')
+            visitor=visitor_id).prefetch_related('visitor', 'app').order_by('-ended_at')
         return render(request, self.template_name, context)
 
 
@@ -244,7 +244,7 @@ class SessionsByAppView(View, LoginRequiredMixin):
         context = {}
         context['app'] = app
         context['apps'] = App.objects.filter(owner=request.user)
-        context['sessions'] = Session.objects.filter(app=app).order_by('-ended_at')
+        context['sessions'] = Session.objects.filter(app=app).prefetch_related('visitor', 'app').order_by('-ended_at')
         return render(request, self.template_name, context)
 
 class SessionView(View, LoginRequiredMixin):

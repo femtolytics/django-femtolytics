@@ -1,6 +1,7 @@
 import logging
 import json 
 
+from django.http import Http404
 from femtolytics.handler import Handler
 from rest_framework import authentication, permissions, serializers, status
 from rest_framework.decorators import api_view, permission_classes
