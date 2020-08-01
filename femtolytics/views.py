@@ -1,6 +1,5 @@
 import json
 import logging
-import pytz
 
 from datetime import datetime, timedelta
 from django.conf import settings
@@ -9,11 +8,10 @@ from django.db.models.functions import TruncDay
 from django.db.models import Count
 from django.shortcuts import render, redirect, get_object_or_404, Http404
 from django.urls import reverse_lazy
+from django.utils import timezone
 from django.views.generic.base import View, TemplateView
 from femtolytics.models import App, Session, Visitor, Activity
 from femtolytics.forms import AppForm
-
-utc = pytz.UTC
 
 logger = logging.getLogger("femtolytics")
 
@@ -48,13 +46,13 @@ class DashboardByAppView(View, LoginRequiredMixin):
 
         # Graph information (Last `duration` days for now)
         duration = int(request.GET.get('duration', 30))
-        period_start = datetime.now() - timedelta(days=duration)
+        period_start = timzeone.now() - timedelta(days=duration)
         stats = {}
         # Create empty entries 
         for index in range(0, duration):
             then = period_start + timedelta(days=index)
             then = datetime(then.year, then.month, then.day)
-            stats[then.replace(tzinfo=utc)] = {
+            stats[then] = {
                 'sessions': 0,
                 'visitors': 0,
             }
@@ -62,7 +60,7 @@ class DashboardByAppView(View, LoginRequiredMixin):
         sessions = Session.objects.filter(app=app, started_at__gte=period_start).annotate(day=TruncDay(
             'started_at')).values('day').annotate(c=Count('id')).values('day', 'c')
         for session in sessions:
-            stats[session['day'].replace(tzinfo=utc)] = {
+            stats[session['day']] = {
                 'sessions': session['c'],
                 'visitors': 0,
             }
@@ -71,12 +69,12 @@ class DashboardByAppView(View, LoginRequiredMixin):
         visitors = Visitor.objects.filter(app=app, registered_at__gte=period_start).annotate(day=TruncDay(
             'registered_at')).values('day').annotate(c=Count('id')).values('day', 'c')
         for visitor in visitors:
-            if visitor['day'].replace(tzinfo=utc) not in stats:
-                stats[visitor['day'].replace(tzinfo=utc)] = {
+            if visitor['day'] not in stats:
+                stats[visitor['day']] = {
                     'sessions': 0,
                     'visitors': 0,
                 }
-            stats[visitor['day'].replace(tzinfo=utc)]['visitors'] = visitor['c']
+            stats[visitor['day']]['visitors'] = visitor['c']
         context['visitor_count'] = visitors.count()
         # Organize entries to be easily graphed.
         entries = []
@@ -125,7 +123,7 @@ class DashboardByAppView(View, LoginRequiredMixin):
             pass
 
         # Compute 30-DAU
-        thirty = datetime.now() - timedelta(days=30)
+        thirty = timezone.now() - timedelta(days=30)
         min_sessions = 2
         if hasattr(settings, 'FEMTOLYTICS_30DAU_SESSIONS_THRESHOLD'):
             min_sessions = settings.FEMTOLYTICS_30DAU_SESSIONS_THRESHOLD
@@ -135,7 +133,7 @@ class DashboardByAppView(View, LoginRequiredMixin):
         context['30dau'] = activities.count()
 
         # Compute 7-DAU
-        seven = datetime.now() - timedelta(days=7)
+        seven = timezone.now() - timedelta(days=7)
         min_sessions = 2
         if hasattr(settings, 'FEMTOLYTICS_7DAU_SESSIONS_THRESHOLD'):
             min_sessions = settings.FEMTOLYTICS_7DAU_SESSIONS_THRESHOLD

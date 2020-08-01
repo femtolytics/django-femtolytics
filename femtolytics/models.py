@@ -1,14 +1,13 @@
 import json
 import logging
-import pytz
 import random
 import uuid
 
 from datetime import datetime, timedelta
 from django.contrib.auth import get_user_model
 from django.db import models
+from django.utils import timezone
 
-utc = pytz.UTC
 
 User = get_user_model()
 
@@ -160,7 +159,7 @@ class Visitor(BaseModel):
         'Wolverine',
         'Wombat',
     ]
-    registered_at = models.DateTimeField(default=datetime.now)
+    registered_at = models.DateTimeField(default=timezone.now)
     app = models.ForeignKey(App, on_delete=models.CASCADE)
     # First session can be used in the list of sessions to tell whether the visitor is a returning or not.
     first_session = models.ForeignKey('Session', related_name='first_visitor', on_delete=models.CASCADE, default=None, null=True, blank=True)
@@ -176,7 +175,7 @@ class Visitor(BaseModel):
 class Session(BaseModel):
     visitor = models.ForeignKey(Visitor, on_delete=models.CASCADE)
     app = models.ForeignKey(App, on_delete=models.CASCADE)
-    started_at = models.DateTimeField(default=datetime.now)
+    started_at = models.DateTimeField(default=timezone.now)
     ended_at = models.DateTimeField()
 
     @property
@@ -286,7 +285,7 @@ class Activity(BaseModel):
         return None
 
     @classmethod
-    def find_app_visitor_session(cls, event_or_action):
+    def find_app_visitor_session(cls, event_or_action, session_gap_seconds=900):
         app = None
         try:
             app = App.objects.get(package_name=event_or_action['package']['name'])
@@ -294,11 +293,16 @@ class Activity(BaseModel):
             return None,None,None
         
         event_time = event_or_action['event_time']
+        if timezone.is_naive(event_time):
+            event_time = timezone.make_aware(event_time)
+
         visitor, created = Visitor.objects.get_or_create(
             id=event_or_action['visitor_id'], app=app)
         logger.debug(f'    -> Visitor {visitor.id}')
-        
-        if visitor.registered_at.replace(tzinfo=utc) > event_time.replace(tzinfo=utc):
+        logger.debug(f'VISITOR {visitor.registered_at}')
+        logger.debug(f'EVENT   {event_time}')
+        if visitor.registered_at > event_time:
+            logger.debug(' -> REWINDING registered_at from {} to {}'.format(visitor.registered_at, event_time))
             visitor.registered_at = event_time
             visitor.save()
 
@@ -324,8 +328,8 @@ class Activity(BaseModel):
                 ended_at=event_time,
             )
         else:
-            delta = event_time.replace(tzinfo=utc) - session.ended_at.replace(tzinfo=utc)
-            if delta.total_seconds() > 3600:
+            delta = event_time - session.ended_at
+            if delta.total_seconds() > session_gap_seconds:
                 # This is a new session
                 session = Session.objects.create(
                     visitor=visitor,
@@ -336,9 +340,9 @@ class Activity(BaseModel):
 
         logger.debug(
             f'    -> Session {session.short_id} {session.started_at} {session.ended_at}')
-        if session.started_at.replace(tzinfo=utc) > event_time.replace(tzinfo=utc):
+        if session.started_at > event_time:
             session.started_at = event_time
-        if session.ended_at.replace(tzinfo=utc) < event_time.replace(tzinfo=utc):
+        if session.ended_at < event_time:
             session.ended_at = event_time
         session.save()
 

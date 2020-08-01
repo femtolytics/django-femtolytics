@@ -1,10 +1,19 @@
 import json
+import uuid
 
 from dateutil import parser
 from django.conf import settings
+from django.utils import timezone
+from django.utils.timezone import is_aware, make_aware
+
 from femtolytics.models import Activity
 
 class Handler:
+    SUCCESS = 0
+    APP_NOT_FOUND = 1
+    IGNORE = 2
+    INVALID = 3
+
     @classmethod
     def log_city(cls):
         log_city = False
@@ -13,17 +22,63 @@ class Handler:
         return log_city
 
     @classmethod
+    def valid_event(cls, event):
+        if not Handler.valid_event_or_action(event, 'event'):
+            return False
+        if event['event']['type'] not in ['VIEW', 'NEW_USER', 'CRASH', 'GOAL']:
+            return False
+        return True
+
+    @classmethod
+    def valid_action(cls, action):
+        return Handler.valid_event_or_action(action, 'action')
+
+    @classmethod
+    def valid_event_or_action(cls, event_or_action, key):
+        if key not in event_or_action:
+            return False
+        if 'type' not in event_or_action[key] or 'time' not in event_or_action[key]:
+            return False
+        if not isinstance(event_or_action[key]['time'], str):
+            return False
+        if 'package' not in event_or_action:
+            return False
+        if 'name' not in event_or_action['package'] or 'version' not in event_or_action['package'] or 'build' not in event_or_action['package']:
+            return False
+        if 'device' not in event_or_action:
+            return False
+        if 'name' not in event_or_action['device'] or 'os' not in event_or_action['device']:
+            return False
+        if 'visitor_id' not in event_or_action:
+            return False
+        input_form = 'int' if isinstance(event_or_action['visitor_id'], int) else 'hex'
+        try:
+            return uuid.UUID(**{input_form: event_or_action['visitor_id']})
+        except (AttributeError, ValueError):
+            return False
+
+        return True
+
+    @classmethod
     def on_event(cls, event, remote_ip=None, city=None, ignore=None):
+        if not Handler.valid_event(event):
+            return None, Handler.INVALID
+
         properties = None
         if 'properties' in event['event']:
             properties = json.dumps(event['event']['properties'])
-        event['event_time'] = parser.parse(event['event']['time'])
+        try:
+            event['event_time'] = parser.parse(event['event']['time'])
+            if not is_aware(event['event_time']):
+                event['event_time'] = make_aware(event['event_time'])
+        except parser._parser.ParserError:
+            return None, Handler.INVALID
 
         app, visitor, session = Activity.find_app_visitor_session(event)
         if app is None:
-            return None
+            return None, Handler.APP_NOT_FOUND
         if ignore is not None and ignore(app, visitor, session):
-            return None
+            return None, Handler.IGNORE
         activity = Activity.objects.create(
             visitor=visitor,
             session=session,
@@ -41,20 +96,28 @@ class Handler:
             region=city['region'] if city is not None and 'region' in city else None,
             country=city['country_name'] if city is not None else None,
         )
-        return activity
+        return activity, Handler.SUCCESS
 
     @classmethod
     def on_action(cls, action, remote_ip=None, city=None, ignore=None):
+        if not Handler.valid_action(action):
+            return None, Handler.INVALID
+
         properties = None
         if 'properties' in action['action']:
             properties = json.dumps(action['action']['properties'])
-        action['event_time'] = parser.parse(action['action']['time'])
+        try:
+            action['event_time'] = parser.parse(action['action']['time'])
+            if not is_aware(action['event_time']):
+                action['event_time'] = make_aware(action['event_time'])
+        except parser._parser.ParserError:
+            return None, Handler.INVALID
 
         app, visitor, session = Activity.find_app_visitor_session(action)
         if app is None:
-            return None
+            return None, Handler.APP_NOT_FOUND
         if ignore is not None and ignore(app, visitor, session):
-            return None
+            return None, Handler.IGNORE
         activity = Activity.objects.create(
             visitor=visitor,
             session=session,
@@ -72,4 +135,4 @@ class Handler:
             region=city['region'] if city is not None and 'region' in city else None,
             country=city['country_name'] if city is not None else None,
         )
-        return activity
+        return activity, Handler.SUCCESS
