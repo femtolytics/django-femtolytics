@@ -389,3 +389,16 @@ class Crash(BaseModel):
         verbose_name_plural = 'Crashes'
         unique_together = ['signature', 'app']
 
+
+class Goal(BaseModel):
+    name = models.CharField(db_index=True, max_length=1024)
+    app = models.ForeignKey(App, on_delete=models.CASCADE)
+    sessions = models.ManyToManyField(Session)
+    activities = models.ManyToManyField(Activity)
+    first_at = models.DateTimeField(default=timezone.now)
+    last_at = models.DateTimeField(default=timezone.now) 
+
+    class Meta:
+        verbose_name_plural = 'Goals'
+        unique_together = ['name', 'app']
+

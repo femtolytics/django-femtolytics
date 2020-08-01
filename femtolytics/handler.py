@@ -1,3 +1,4 @@
+import hashlib
 import json
 import uuid
 
@@ -6,7 +7,7 @@ from django.conf import settings
 from django.utils import timezone
 from django.utils.timezone import is_aware, make_aware
 
-from femtolytics.models import Activity, Crash
+from femtolytics.models import Activity, Crash, Goal
 
 class Handler:
     SUCCESS = 0
@@ -98,12 +99,12 @@ class Handler:
         )
         if event['event']['type'] == 'CRASH':
             Handler.on_crash(app, visitor, session, activity)
+        elif event['event']['type'] == 'GOAL':
+            Handler.on_goal(app, visitor, session, activity)
         return activity, Handler.SUCCESS
 
     @classmethod
     def on_crash(cls, app, visitor, session, activity):
-        import hashlib
-
         props = activity.properties
         if isinstance(activity.properties, str):
             props = json.loads(activity.properties)
@@ -128,6 +129,31 @@ class Handler:
         crash.activities.add(activity)
 
         return crash
+    
+    @classmethod
+    def on_goal(cls, app, visitor, session, activity):
+        props = activity.properties
+        if isinstance(activity.properties, str):
+            props = json.loads(activity.properties)
+        name = props['goal']
+        goal, created = Goal.objects.get_or_create(
+            name=name,
+            app=app,
+        )
+        changed = False
+        if created or goal.first_at > activity.occured_at:
+            goal.first_at = activity.occured_at
+            changed = True
+        if created or goal.last_at < activity.occured_at:
+            goal.last_at = activity.occured_at
+            changed = True
+        if changed:
+            goal.save()
+        goal.sessions.add(session)
+        goal.activities.add(activity)
+
+        return goal
+
 
     @classmethod
     def on_action(cls, action, remote_ip=None, city=None, ignore=None):

@@ -19,4 +19,5 @@ urlpatterns = [
      path('visitors/<uuid:app_id>', views.VisitorsByAppView.as_view(), name='visitors_by_app'),
      path('visitors/<uuid:app_id>/<uuid:visitor_id>', views.VisitorView.as_view(), name='visitor'),
      path('crashes/<uuid:app_id>/<uuid:crash_id>', views.CrashView.as_view(), name='crash'),
+     path('goals/<uuid:app_id>/<uuid:crash_id>', views.GoalView.as_view(), name='goal'),
 ]

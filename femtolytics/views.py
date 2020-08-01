@@ -10,7 +10,7 @@ from django.shortcuts import render, redirect, get_object_or_404, Http404
 from django.urls import reverse_lazy
 from django.utils import timezone
 from django.views.generic.base import View, TemplateView
-from femtolytics.models import Activity, App, Crash, Session, Visitor
+from femtolytics.models import Activity, App, Crash, Goal, Session, Visitor
 from femtolytics.forms import AppForm
 
 logger = logging.getLogger("femtolytics")
@@ -126,13 +126,14 @@ class DashboardByAppView(View, LoginRequiredMixin):
             pass
 
         # Goals
-        # SELECT COUNT(*) AS c, DATE(started_at) AS day FROM sessions GROUP BY day
-        goals = Activity.objects.filter(app=app, category=Activity.EVENT, activity_type='GOAL', occured_at__gte=period_start)
+        goals = Goal.objects.filter(app=app, last_at__gte=period_start).prefetch_related('activities')
         goal_map = {}
         for goal in goals:
-            if goal.analyzed_properties not in goal_map:
-                goal_map[goal.analyzed_properties] = 0
-            goal_map[goal.analyzed_properties] += 1
+            goal_map[goal.name] = {
+                'id': goal.id,
+                'short_id': goal.short_id,
+                'count': goal.activities.count(),
+            }
         context['goals'] = goal_map
 
         # Crashes
@@ -325,4 +326,20 @@ class CrashView(View, LoginRequiredMixin):
         context = {}
         context['app'] = app
         context['crash'] = crash
+        return render(request, self.template_name, context)
+
+class GoalView(View, LoginRequiredMixin):
+    template_name = 'femtolytics/goal.html'
+
+    def get(self, request, app_id, goal_id):
+        app = get_object_or_404(App, pk=app_id)
+        if app.owner != request.user:
+            raise Http404
+        goal = get_object_or_404(Goal, pk=goal_id)
+        if goal.app != app:
+            raise Http404
+    
+        context = {}
+        context['app'] = app
+        context['goal'] = goal
         return render(request, self.template_name, context)
