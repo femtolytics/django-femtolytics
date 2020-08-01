@@ -10,7 +10,7 @@ from django.shortcuts import render, redirect, get_object_or_404, Http404
 from django.urls import reverse_lazy
 from django.utils import timezone
 from django.views.generic.base import View, TemplateView
-from femtolytics.models import App, Session, Visitor, Activity
+from femtolytics.models import Activity, App, Crash, Session, Visitor
 from femtolytics.forms import AppForm
 
 logger = logging.getLogger("femtolytics")
@@ -136,12 +136,15 @@ class DashboardByAppView(View, LoginRequiredMixin):
         context['goals'] = goal_map
 
         # Crashes
-        crashes = Activity.objects.filter(app=app, category=Activity.EVENT, activity_type='CRASH', occured_at__gte=period_start)
+        crashes = Crash.objects.filter(app=app, last_at__gte=period_start).prefetch_related('activities')
         crash_map = {}
         for crash in crashes:
-            if crash.analyzed_properties not in crash_map:
-                crash_map[crash.analyzed_properties] = 0
-            crash_map[crash.analyzed_properties] += 1
+            crash_map[crash.signature] = {
+                'id': crash.id,
+                'short_id': crash.short_id,
+                'count': crash.activities.count(),
+                'sample': crash.activities.first().analyzed_properties,
+            }
         context['crashes'] = crash_map
 
         # Compute 30-DAU
@@ -306,4 +309,20 @@ class VisitorsByAppView(View, LoginRequiredMixin):
         context['apps'] = App.objects.filter(owner=request.user)
         context['visitors'] = Visitor.objects.filter(
             app=app).order_by('-registered_at')
+        return render(request, self.template_name, context)
+
+class CrashView(View, LoginRequiredMixin):
+    template_name = 'femtolytics/crash.html'
+
+    def get(self, request, app_id, crash_id):
+        app = get_object_or_404(App, pk=app_id)
+        if app.owner != request.user:
+            raise Http404
+        crash = get_object_or_404(Crash, pk=crash_id)
+        if crash.app != app:
+            raise Http404
+    
+        context = {}
+        context['app'] = app
+        context['crash'] = crash
         return render(request, self.template_name, context)
