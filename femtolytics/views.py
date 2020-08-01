@@ -49,6 +49,7 @@ class DashboardByAppView(View, LoginRequiredMixin):
 
         # Graph information (for the last `duration` days)
         duration = int(request.GET.get('duration', 30))
+        context['duration'] = duration
         period_start = timezone.now() - timedelta(days=duration)
         stats = {}
         # Create empty entries 
