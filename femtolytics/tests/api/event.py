@@ -6,7 +6,7 @@ from django.contrib.auth import get_user_model
 from django.test import Client, TestCase
 from django.urls import reverse
 from django.utils import timezone
-from femtolytics.models import App, Activity, Session, Visitor
+from femtolytics.models import App, Activity, Crash, Session, Visitor
 
 User = get_user_model()
 
@@ -397,3 +397,85 @@ class EventApiTestCase(TestCase):
 
         qs = Activity.objects.filter(app=self.app, category=Activity.EVENT)
         self.assertEqual(qs.count(), 2)
+
+
+    def test_crash(self):
+        message = {
+            'events': [
+                {
+                    'event': {
+                        'type': 'CRASH',
+                        'time': self.now.isoformat(),
+                        'properties': {
+                            'exception': "DatabaseException(Error Domain=FMDatabase Code=2067 \"UNIQUE constraint failed: payees.name\" UserInfo={NSLocalizedDescription=UNIQUE constraint failed: payees.name}) sql 'INSERT INTO payees (name, system, local) VALUES (?, ?, ?)' args [Withdrawal Online Transfer to 0945, 0, 0]}",
+                            'stack_trace': "#0 wrapDatabaseException (package:sqflite/src/exception_impl.dart:11)\n<asynchronous suspension>\n#1 BasicLock.synchronized (package:synchronized/src/basic_lock.dart:34)\n<asynchronous suspension>\n#2 SqfliteDatabaseMixin.txnSynchronized (package:sqflite_common/src/database_mixin.dart:337)\n<asynchronous suspension>\n#3 PayeeDao.insert (package:instabudget/models/payee_dao.dart:46)\n<asynchronous suspension>\n#4 Portafilter.upsertPlaidTransaction (package:instabudget/models/portafilter.dart:342)\n<asynchronous suspension>\n#5 Synchronizer.synchronize.<anonymous closure> (package:instabudget/utils/synchronizer.dart:100)\n<asynchronous suspension>\n",
+                        },
+                    },
+                    'device': {
+                        'name': 'iPhone',
+                        'os': 'iOS 1.0.0',
+                    },
+                    'package': {
+                        'name': self.package_name,
+                        'version': '1.0.0',
+                        'build': '99',
+                    },
+                    'visitor_id': self.visitor_id,
+                },
+            ],
+        }
+        response = self.client.post(reverse('femtolytics_api:event'), json.dumps(
+            message), content_type='application/json')
+        self.assertEqual(response.status_code, 200)
+
+        qs = Activity.objects.filter(app=self.app, category=Activity.EVENT)
+        self.assertEqual(qs.count(), 1)
+
+        event = qs[0]
+        self.assertEqual(str(event.visitor_id), self.visitor_id)
+        self.assertEqual(event.activity_type, 'CRASH')
+        self.assertEqual(event.session, event.visitor.first_session)
+
+        qs = Crash.objects.filter(app=self.app)
+        self.assertEqual(qs.count(), 1)
+        crash = qs[0]
+        self.assertEqual(crash.first_at, self.now)
+        self.assertEqual(crash.last_at, self.now)
+
+        # Make sure we find the same signature
+        then = self.now + timedelta(hours=2)
+        message = {
+            'events': [
+                {
+                    'event': {
+                        'type': 'CRASH',
+                        'time': then.isoformat(),
+                        'properties': {
+                            'exception': "DatabaseException(Error Domain=FMDatabase Code=2067 \"UNIQUE constraint failed: payees.name\" UserInfo={NSLocalizedDescription=UNIQUE constraint failed: payees.name}) sql 'INSERT INTO payees (name, system, local) VALUES (?, ?, ?)' args [REI.COM, 0, 0]}",
+                            'stack_trace': "#0 wrapDatabaseException (package:sqflite/src/exception_impl.dart:11)\n<asynchronous suspension>\n#1 BasicLock.synchronized (package:synchronized/src/basic_lock.dart:34)\n<asynchronous suspension>\n#2 SqfliteDatabaseMixin.txnSynchronized (package:sqflite_common/src/database_mixin.dart:337)\n<asynchronous suspension>\n#3 PayeeDao.insert (package:instabudget/models/payee_dao.dart:46)\n<asynchronous suspension>\n#4 Portafilter.upsertPlaidTransaction (package:instabudget/models/portafilter.dart:342)\n<asynchronous suspension>\n#5 Synchronizer.synchronize.<anonymous closure> (package:instabudget/utils/synchronizer.dart:100)\n<asynchronous suspension>\n",
+                        },
+                    },
+                    'device': {
+                        'name': 'iPhone',
+                        'os': 'iOS 1.0.0',
+                    },
+                    'package': {
+                        'name': self.package_name,
+                        'version': '1.0.0',
+                        'build': '99',
+                    },
+                    'visitor_id': self.visitor_id,
+                },
+            ],
+        }
+        response = self.client.post(reverse('femtolytics_api:event'), json.dumps(
+            message), content_type='application/json')
+        self.assertEqual(response.status_code, 200)
+
+        qs = Crash.objects.filter(app=self.app)
+        self.assertEqual(qs.count(), 1)
+        crash = qs[0]
+        self.assertEqual(crash.sessions.count(), 2)
+        self.assertEqual(crash.activities.count(), 2)
+        self.assertEqual(crash.first_at, self.now)
+        self.assertEqual(crash.last_at, then)

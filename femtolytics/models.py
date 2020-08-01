@@ -375,3 +375,17 @@ class Activity(BaseModel):
 
     class Meta:
         verbose_name_plural = 'Activity'
+
+
+class Crash(BaseModel):
+    signature = models.CharField(db_index=True, max_length=128)
+    app = models.ForeignKey(App, on_delete=models.CASCADE)
+    sessions = models.ManyToManyField(Session)
+    activities = models.ManyToManyField(Activity)
+    first_at = models.DateTimeField(default=timezone.now)
+    last_at = models.DateTimeField(default=timezone.now) 
+
+    class Meta:
+        verbose_name_plural = 'Crashes'
+        unique_together = ['signature', 'app']
+

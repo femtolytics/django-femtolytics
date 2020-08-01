@@ -6,7 +6,7 @@ from django.conf import settings
 from django.utils import timezone
 from django.utils.timezone import is_aware, make_aware
 
-from femtolytics.models import Activity
+from femtolytics.models import Activity, Crash
 
 class Handler:
     SUCCESS = 0
@@ -96,7 +96,38 @@ class Handler:
             region=city['region'] if city is not None and 'region' in city else None,
             country=city['country_name'] if city is not None else None,
         )
+        if event['event']['type'] == 'CRASH':
+            Handler.on_crash(app, visitor, session, activity)
         return activity, Handler.SUCCESS
+
+    @classmethod
+    def on_crash(cls, app, visitor, session, activity):
+        import hashlib
+
+        props = activity.properties
+        if isinstance(activity.properties, str):
+            props = json.loads(activity.properties)
+        
+        signature = hashlib.sha1(props['exception'].encode('utf-8')).hexdigest()
+        if 'stack_trace' in props and props['stack_trace'] is not None and props['stack_trace'] != '':
+            signature = hashlib.sha1(props['stack_trace'].encode('utf-8')).hexdigest()
+        crash, created = Crash.objects.get_or_create(
+            signature=signature,
+            app=app,
+        )
+        changed = False
+        if created or crash.first_at > activity.occured_at:
+            crash.first_at = activity.occured_at
+            changed = True
+        if created or crash.last_at < activity.occured_at:
+            crash.last_at = activity.occured_at
+            changed = True
+        if changed:
+            crash.save()
+        crash.sessions.add(session)
+        crash.activities.add(activity)
+
+        return crash
 
     @classmethod
     def on_action(cls, action, remote_ip=None, city=None, ignore=None):
