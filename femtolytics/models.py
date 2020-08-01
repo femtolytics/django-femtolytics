@@ -85,8 +85,11 @@ class Visitor(BaseModel):
         'Withdrawn',
     ]
     ANIMALS = [
+        'Aardvark',
+        'Albatros',
         'Alligator',
         'Anteater',
+        'Antelope',
         'Armadillo',
         'Aurochs',
         'Axolotl',
@@ -96,6 +99,7 @@ class Visitor(BaseModel):
         'Buffalo',
         'Camel',
         'Capybara',
+        'Caracal',
         'Chameleon',
         'Cheetah',
         'Chinchilla',
@@ -107,7 +111,9 @@ class Visitor(BaseModel):
         'Dingo',
         'Dinosaur',
         'Dolphin',
+        'Dromedary',
         'Duck',
+        'Eland',
         'Elephant',
         'Ferret',
         'Fox',
@@ -115,6 +121,7 @@ class Visitor(BaseModel):
         'Giraffe',
         'Gopher',
         'Grizzly',
+        'Hartebeest',
         'Hedgehog',
         'Hippo',
         'Hyena',
@@ -131,12 +138,13 @@ class Visitor(BaseModel):
         'Liger',
         'Llama',
         'Manatee',
+        'Meerkat',
         'Mink',
         'Monkey',
         'Moose',
         'Narwhal',
-        'Nyan Cat',
         'Orangutan',
+        'Ostrich',
         'Otter',
         'Panda',
         'Penguin',
@@ -147,17 +155,20 @@ class Visitor(BaseModel):
         'Rabbit',
         'Racoon',
         'Rhino',
+        'Seagull',
         'Sheep',
         'Shrew',
         'Skunk',
-        'Slow Loris',
         'Squirrel',
         'Tiger',
         'Turtle',
         'Walrus',
+        'Warthog',
+        'Wildebeest',
         'Wolf',
         'Wolverine',
         'Wombat',
+        'Zebra',
     ]
     registered_at = models.DateTimeField(default=timezone.now)
     app = models.ForeignKey(App, on_delete=models.CASCADE)
@@ -166,7 +177,11 @@ class Visitor(BaseModel):
 
     @property
     def name(self):
-        random.seed(self.id)
+        return Visitor.name_from_id(self.id)
+
+    @classmethod
+    def name_from_id(cls, id):
+        random.seed(id)
         a = random.randint(0, len(Visitor.ADJECTIVES))
         b = random.randint(0, len(Visitor.ANIMALS))
         return '{} {}'.format(Visitor.ADJECTIVES[a], Visitor.ANIMALS[b])
@@ -269,7 +284,9 @@ class Activity(BaseModel):
             if self.activity_type == 'VIEW':
                 return props['view']
             elif self.activity_type == 'NEW_USER':
-                return props['visitor_id']
+                return Visitor.name_from_id(uuid.UUID(hex=props['visitor_id']))
+            elif self.activity_type == 'GOAL':
+                return props['goal']
             elif self.activity_type == 'CRASH':
                 return props['exception'].split("\n")[0]
         return json.dumps(props, indent=2, sort_keys=True)
@@ -282,6 +299,9 @@ class Activity(BaseModel):
         if self.category == Activity.EVENT:
             if self.activity_type == 'CRASH':
                 return props['stack_trace']
+            elif self.activity_type == 'GOAL':
+                props.pop('goal', None)
+                return props
         return None
 
     @classmethod

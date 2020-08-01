@@ -345,8 +345,7 @@ class EventApiTestCase(TestCase):
         event = qs[0]
         self.assertEqual(str(event.visitor_id), self.visitor_id)
         self.assertEqual(event.activity_type, 'VIEW')
-
-        # self.assertEqual(event.session, event.visitor.first_session)
+        self.assertEqual(event.session, event.visitor.first_session)
 
     def test_valid_multiple_event(self):
         message = {

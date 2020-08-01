@@ -1,7 +1,7 @@
 import json
 import logging
 
-from datetime import datetime, timedelta
+from datetime import timedelta
 from django.conf import settings
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models.functions import TruncDay
@@ -46,12 +46,13 @@ class DashboardByAppView(View, LoginRequiredMixin):
 
         # Graph information (Last `duration` days for now)
         duration = int(request.GET.get('duration', 30))
-        period_start = timzeone.now() - timedelta(days=duration)
+        period_start = timezone.now() - timedelta(days=duration)
         stats = {}
         # Create empty entries 
         for index in range(0, duration):
             then = period_start + timedelta(days=index)
-            then = datetime(then.year, then.month, then.day)
+            then = timezone.datetime(then.year, then.month, then.day, tzinfo=then.tzinfo)
+            print(f'{then} {timezone.is_naive(then)}')
             stats[then] = {
                 'sessions': 0,
                 'visitors': 0,
@@ -283,5 +284,5 @@ class VisitorsByAppView(View, LoginRequiredMixin):
         context['app'] = app
         context['apps'] = App.objects.filter(owner=request.user)
         context['visitors'] = Visitor.objects.filter(
-            app=app).order_by('registered_at')
+            app=app).order_by('-registered_at')
         return render(request, self.template_name, context)

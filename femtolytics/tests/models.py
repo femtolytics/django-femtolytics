@@ -86,6 +86,8 @@ class FindAppVisitorSessionTestCase(TestCase):
             started_at=self.now - timedelta(hours=12),
             ended_at=self.now - timedelta(hours=10),
         )
+        visitor.first_session = session
+        visitor.save()
 
         evt = {
             'package': {
@@ -97,6 +99,8 @@ class FindAppVisitorSessionTestCase(TestCase):
         _, v, s = Activity.find_app_visitor_session(evt)
         self.assertEqual(str(v.id), visitor.id)
         self.assertNotEqual(s.id, session.id)
+        self.assertNotEqual(v.first_session.id, s.id)
+        self.assertEqual(v.first_session.id, session.id)
 
     def test_find_nearby_session(self):
         visitor = Visitor.objects.create(
