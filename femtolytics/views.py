@@ -63,15 +63,17 @@ class DashboardByAppView(View, LoginRequiredMixin):
         # SELECT COUNT(*) AS c, DATE(started_at) AS day FROM sessions GROUP BY day
         sessions = Session.objects.filter(app=app, started_at__gte=period_start).annotate(day=TruncDay(
             'started_at')).values('day').annotate(c=Count('id')).values('day', 'c')
+        context['session_count'] = 0
         for session in sessions:
             stats[session['day']] = {
                 'sessions': session['c'],
                 'visitors': 0,
             }
-        context['session_count'] = sessions.count()
+            context['session_count'] += session['c']
         # SELECT COUNT(*) AS c, DATE(registered_at) AS day FROM visitors GROUP BY day
         visitors = Visitor.objects.filter(app=app, registered_at__gte=period_start).annotate(day=TruncDay(
             'registered_at')).values('day').annotate(c=Count('id')).values('day', 'c')
+        context['visitor_count'] = 0
         for visitor in visitors:
             if visitor['day'] not in stats:
                 stats[visitor['day']] = {
@@ -79,7 +81,7 @@ class DashboardByAppView(View, LoginRequiredMixin):
                     'visitors': 0,
                 }
             stats[visitor['day']]['visitors'] = visitor['c']
-        context['visitor_count'] = visitors.count()
+            context['visitor_count'] += visitor['c']
         # Organize entries to be easily graphed.
         entries = []
         for day in sorted(stats):
@@ -156,7 +158,7 @@ class DashboardByAppView(View, LoginRequiredMixin):
             min_sessions = settings.FEMTOLYTICS_30DAU_SESSIONS_THRESHOLD
 
         activities = Activity.objects.filter(app=app, occured_at__gte=thirty).values(
-            'visitor_id').annotate(c=Count('session_id', distinct=True)).filter(c__gt=2).values('visitor_id', 'c')
+            'visitor_id').annotate(c=Count('session_id', distinct=True)).filter(c__gte=min_sessions).values('visitor_id', 'c')
         context['30dau'] = activities.count()
 
         # Compute 7-DAU
@@ -166,7 +168,7 @@ class DashboardByAppView(View, LoginRequiredMixin):
             min_sessions = settings.FEMTOLYTICS_7DAU_SESSIONS_THRESHOLD
 
         activities = Activity.objects.filter(app=app, occured_at__gte=seven).values(
-            'visitor_id').annotate(c=Count('session_id', distinct=True)).filter(c__gt=2).values('visitor_id', 'c')
+            'visitor_id').annotate(c=Count('session_id', distinct=True)).filter(c__gte=min_sessions).values('visitor_id', 'c')
         context['7dau'] = activities.count()
 
         return render(request, self.template_name, context)
