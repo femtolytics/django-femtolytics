@@ -40,6 +40,9 @@ class DashboardByAppView(View, LoginRequiredMixin):
         context['apps'] = App.objects.filter(owner=request.user)
         context['app'] = app
         
+        # Do we have any data?
+        context['activated'] = Session.objects.filter(app=app).count() > 0
+        
         # Last 5 sessions
         context['sessions'] = Session.objects.filter(
             app=app).prefetch_related('visitor').order_by('-ended_at')[:5]
@@ -52,7 +55,6 @@ class DashboardByAppView(View, LoginRequiredMixin):
         for index in range(0, duration):
             then = period_start + timedelta(days=index)
             then = timezone.datetime(then.year, then.month, then.day, tzinfo=then.tzinfo)
-            print(f'{then} {timezone.is_naive(then)}')
             stats[then] = {
                 'sessions': 0,
                 'visitors': 0,

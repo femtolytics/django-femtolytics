@@ -25,7 +25,7 @@ class Handler:
     def valid_event(cls, event):
         if not Handler.valid_event_or_action(event, 'event'):
             return False
-        if event['event']['type'] not in ['VIEW', 'NEW_USER', 'CRASH', 'GOAL']:
+        if event['event']['type'] not in ['VIEW', 'NEW_USER', 'CRASH', 'GOAL', 'DETACHED', 'RESUMED', 'INACTIVE', 'PAUSED']:
             return False
         return True
 

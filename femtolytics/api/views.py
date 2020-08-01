@@ -2,13 +2,24 @@ import logging
 import json 
 
 from django.http import HttpResponse, Http404
+from django.shortcuts import get_object_or_404
 from femtolytics.handler import Handler
+from femtolytics.models import App, Session
 from rest_framework import authentication, permissions, serializers, status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 logger = logging.getLogger("femtolytics")
+
+class ActivatedView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, app_id, format=None):
+        app = get_object_or_404(App, pk=app_id)
+        return Response({
+            'activated': Session.objects.filter(app=app).count() > 0,
+        })
 
 class EventView(APIView):
     permission_classes = [permissions.AllowAny]
