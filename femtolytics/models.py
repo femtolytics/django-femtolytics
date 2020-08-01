@@ -347,7 +347,7 @@ class Activity(BaseModel):
         session.save()
 
         # Keep track of the first session.
-        if visitor.first_session is None or visitor.first_session.started_at.replace(tzinfo=utc) > session.started_at.replace(tzinfo=utc):
+        if visitor.first_session is None or visitor.first_session.started_at > session.started_at:
             visitor.first_session = session
             visitor.save()
 
