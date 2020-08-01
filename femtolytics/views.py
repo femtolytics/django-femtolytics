@@ -44,7 +44,7 @@ class DashboardByAppView(View, LoginRequiredMixin):
         context['sessions'] = Session.objects.filter(
             app=app).prefetch_related('visitor').order_by('-ended_at')[:5]
 
-        # Graph information (Last `duration` days for now)
+        # Graph information (for the last `duration` days)
         duration = int(request.GET.get('duration', 30))
         period_start = timezone.now() - timedelta(days=duration)
         stats = {}
@@ -122,6 +122,25 @@ class DashboardByAppView(View, LoginRequiredMixin):
         except ImportError as e:
             # pycountry unavailable, ignore silently
             pass
+
+        # Goals
+        # SELECT COUNT(*) AS c, DATE(started_at) AS day FROM sessions GROUP BY day
+        goals = Activity.objects.filter(app=app, category=Activity.EVENT, activity_type='GOAL', occured_at__gte=period_start)
+        goal_map = {}
+        for goal in goals:
+            if goal.analyzed_properties not in goal_map:
+                goal_map[goal.analyzed_properties] = 0
+            goal_map[goal.analyzed_properties] += 1
+        context['goals'] = goal_map
+
+        # Crashes
+        crashes = Activity.objects.filter(app=app, category=Activity.EVENT, activity_type='CRASH', occured_at__gte=period_start)
+        crash_map = {}
+        for crash in crashes:
+            if crash.analyzed_properties not in crash_map:
+                crash_map[crash.analyzed_properties] = 0
+            crash_map[crash.analyzed_properties] += 1
+        context['crashes'] = crash_map
 
         # Compute 30-DAU
         thirty = timezone.now() - timedelta(days=30)
@@ -243,7 +262,7 @@ class SessionsByAppView(View, LoginRequiredMixin):
         context = {}
         context['app'] = app
         context['apps'] = App.objects.filter(owner=request.user)
-        context['sessions'] = Session.objects.filter(app=app).prefetch_related('visitor', 'app').order_by('-ended_at')
+        context['sessions'] = Session.objects.filter(app=app).prefetch_related('visitor', 'app', 'activity_set').order_by('-ended_at')
         return render(request, self.template_name, context)
 
 class SessionView(View, LoginRequiredMixin):
