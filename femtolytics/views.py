@@ -107,11 +107,11 @@ class DashboardByAppView(View, LoginRequiredMixin):
                         min_sessions = activity['c']
                     if max_sessions is None or activity['c'] > max_sessions:
                         max_sessions = activity['c']
-
+                    country = pycountry.countries.get(name=activity['country'])
                     locations.append({
                         'country': activity['country'],
-                        'alpha_2': pycountry.countries.get(name=activity['country']).alpha_2,
-                        'alpha_3': pycountry.countries.get(name=activity['country']).alpha_3,
+                        'alpha_2': country.alpha_2 if country is not None else None,
+                        'alpha_3': country.alpha_3 if country is not None else None,
                         'count': activity['c'],
                     })
             for location in locations:
