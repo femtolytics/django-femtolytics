@@ -7,7 +7,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models.functions import TruncDay
 from django.db.models import Count
 from django.shortcuts import render, redirect, get_object_or_404, Http404
-from django.urls import reverse_lazy
+from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 from django.views.generic.base import View, TemplateView
 from femtolytics.models import Activity, App, Crash, Goal, Session, Visitor
@@ -200,7 +200,7 @@ class AppsView(View, LoginRequiredMixin):
 
 class AppsAdd(View, LoginRequiredMixin):
     template_name = 'femtolytics/apps_add.html'
-    success_url = reverse_lazy('femtolytics:apps')
+    success_url = reverse_lazy('femtolytics:apps_instructions')
 
     def get(self, request):
         context = {}
@@ -213,11 +213,24 @@ class AppsAdd(View, LoginRequiredMixin):
             app = form.save(commit=False)
             app.owner = request.user
             app.save()
-            return redirect(self.success_url)
+            url = self.success_url
+            if isinstance(url, str):
+                url = reverse(url, kwargs={'app_id': app.id})
+            return redirect(url, app.id)
         else:
             context = {}
             context['form'] = form
             return render(request, self.template_name, context)
+
+
+class AppsInstructions(View, LoginRequiredMixin):
+    template_name = 'femtolytics/apps_instructions.html'
+
+    def get(self, request, app_id):
+        app = get_object_or_404(App, pk=app_id)
+        context = {}
+        context['app'] = app
+        return render(request, self.template_name, context)
 
 
 class AppsEdit(View, LoginRequiredMixin):

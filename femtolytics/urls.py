@@ -12,6 +12,7 @@ urlpatterns = [
      path('apps/edit/<uuid:app_id>', views.AppsEdit.as_view(), name='apps_edit'),
      path('apps/delete/<uuid:app_id>', views.AppsDelete.as_view(), name='apps_delete'),
      path('apps/activated/<uuid:app_id>', api_views.ActivatedView.as_view(), name='apps_activated'),
+     path('apps/instructions/<uuid:app_id>', views.AppInstructions.as_view(), name='apps_instructions'),
      path('sessions', views.SessionsView.as_view(), name='sessions'),
      path('sessions/<uuid:app_id>', views.SessionsByAppView.as_view(), name='sessions_by_app'),
      path('sessions/<uuid:app_id>/<uuid:session_id>', views.SessionView.as_view(), name='session'),
