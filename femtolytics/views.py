@@ -15,6 +15,12 @@ from femtolytics.forms import AppForm
 
 logger = logging.getLogger("femtolytics")
 
+def safe_cast(val, to_type, default=None):
+    try:
+        return to_type(val)
+    except (ValueError, TypeError):
+        return default
+
 
 class DashboardView(View, LoginRequiredMixin):
     success_url = 'femtolytics:dashboards_by_app'
@@ -280,10 +286,23 @@ class SessionsByAppView(View, LoginRequiredMixin):
         if app.owner != request.user:
             raise Http404
 
+        page_size = 10
+
         context = {}
         context['app'] = app
         context['apps'] = App.objects.filter(owner=request.user)
-        context['sessions'] = Session.objects.filter(app=app).prefetch_related('visitor', 'app', 'activity_set').order_by('-ended_at')
+        qs = Session.objects.filter(app=app).prefetch_related('visitor', 'app', 'activity_set').order_by('-ended_at')
+        context['count'] = qs.count()
+        context['page_size'] = page_size
+        page = safe_cast(request.GET.get('page'), int, 0)
+        context['page'] = page
+        context['first_page'] = 0
+        context['previous_page'] = page - 1 if page > 0 else 0
+        context['next_page'] = page + 1 if (1 +page) * page_size < context['count'] else page
+        context['last_page'] = round(context['count'] / page_size)
+        offset = page_size * page
+        print('%s %s', offset, page_size)
+        context['sessions'] = qs[offset:offset+page_size]
         return render(request, self.template_name, context)
 
 class SessionView(View, LoginRequiredMixin):
