@@ -52,10 +52,12 @@ class DashboardByAppView(View, LoginRequiredMixin):
         context['duration'] = duration
         period_start = timezone.now() - timedelta(days=duration)
         stats = {}
-        # Create empty entries 
+        # Create empty entries
+        tzinfo = None
         for index in range(0, duration):
             then = period_start + timedelta(days=index)
             then = timezone.datetime(then.year, then.month, then.day, tzinfo=then.tzinfo)
+            tzinfo = then.tzinfo
             stats[then] = {
                 'sessions': 0,
                 'visitors': 0,
@@ -65,7 +67,8 @@ class DashboardByAppView(View, LoginRequiredMixin):
             'started_at')).values('day').annotate(c=Count('id')).values('day', 'c')
         context['session_count'] = 0
         for session in sessions:
-            stats[session['day']] = {
+            then = timezone.datetime(session['day'].year, session['day'].month, session['day'].day, tzinfo=tzinfo)
+            stats[then] = {
                 'sessions': session['c'],
                 'visitors': 0,
             }
@@ -75,12 +78,8 @@ class DashboardByAppView(View, LoginRequiredMixin):
             'registered_at')).values('day').annotate(c=Count('id')).values('day', 'c')
         context['visitor_count'] = 0
         for visitor in visitors:
-            if visitor['day'] not in stats:
-                stats[visitor['day']] = {
-                    'sessions': 0,
-                    'visitors': 0,
-                }
-            stats[visitor['day']]['visitors'] = visitor['c']
+            then = timezone.datetime(visitor['day'].year, visitor['day'].month, visitor['day'].day, tzinfo=tzinfo)
+            stats[then]['visitors'] = visitor['c']
             context['visitor_count'] += visitor['c']
         # Organize entries to be easily graphed.
         entries = []

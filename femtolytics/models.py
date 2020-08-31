@@ -182,8 +182,8 @@ class Visitor(BaseModel):
     @classmethod
     def name_from_id(cls, id):
         random.seed(id)
-        a = random.randint(0, len(Visitor.ADJECTIVES))
-        b = random.randint(0, len(Visitor.ANIMALS))
+        a = random.randint(0, len(Visitor.ADJECTIVES) - 1)
+        b = random.randint(0, len(Visitor.ANIMALS) - 1)
         return '{} {}'.format(Visitor.ADJECTIVES[a], Visitor.ANIMALS[b])
 
 
