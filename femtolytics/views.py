@@ -51,7 +51,7 @@ class DashboardByAppView(View, LoginRequiredMixin):
         
         # Last 5 sessions
         context['sessions'] = Session.objects.filter(
-            app=app).prefetch_related('visitor').order_by('-ended_at')[:5]
+            app=app).prefetch_related('visitor').order_by('-ended_at')[:6]
 
         # Graph information (for the last `duration` days)
         duration = int(request.GET.get('duration', 30))
@@ -158,7 +158,7 @@ class DashboardByAppView(View, LoginRequiredMixin):
 
         # Compute 30-DAU
         thirty = timezone.now() - timedelta(days=30)
-        min_sessions = 2
+        min_sessions = 5
         if hasattr(settings, 'FEMTOLYTICS_30DAU_SESSIONS_THRESHOLD'):
             min_sessions = settings.FEMTOLYTICS_30DAU_SESSIONS_THRESHOLD
 
@@ -300,6 +300,12 @@ class SessionsByAppView(View, LoginRequiredMixin):
         context['previous_page'] = page - 1 if page > 0 else 0
         context['next_page'] = page + 1 if (1 +page) * page_size < context['count'] else page
         context['last_page'] = round(context['count'] / page_size)
+        context['pages'] = []
+        first = page - 3 if page > 3 else 0
+        for index in range(6):
+            if first + index <= context['last_page']:
+                context['pages'].append(first+index)
+
         offset = page_size * page
         print('%s %s', offset, page_size)
         context['sessions'] = qs[offset:offset+page_size]
