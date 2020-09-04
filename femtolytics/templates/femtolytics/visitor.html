@@ -5,16 +5,17 @@
 <div class="container">
     <div class="row">
         <div class="col">
-            <h2><a href="{% url 'femtolytics:visitors_by_app' visitor.app_id %}">&lt;</a>&nbsp;Visitor</h2>
-            <p class="text-muted mb-0">{{ visitor.id}}</p>
-            <p class="text-muted mb-0">{{ visitor.created_at|date:'Y/m/d H:i:s'}}</p>
-            <p class="text-muted mb-0">{{ visitor.session_set.count }} sessions</p>
-            <p class="text-muted mb-4">{{ visitor.app.package_name }}</p>
-            <h2>Sessions</h2>
+            <h2><a href="{% url 'femtolytics:visitors_by_app' visitor.app_id %}">&lt;</a>&nbsp;{{ visitor.name}}</h2>
+            <p>Joined {{ visitor.registered_at|date:'Y/m/d H:i:s'}}</p>
         </div>
     </div>
-    {% for session in sessions %}
-        {%include 'femtolytics/fragments/session.html' %}
-    {% endfor %}
+    <div class="row">
+        <div class="col">
+            <h2>{{ visitor.session_set.count }} Sessions</h2>
+            {% for session in sessions %}
+                {%include 'femtolytics/fragments/session.html' %}
+            {% endfor %}
+        </div>
+    </div>
 </div>
 {% endblock %}

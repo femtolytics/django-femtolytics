@@ -22,7 +22,7 @@ def safe_cast(val, to_type, default=None):
         return default
 
 
-class DashboardView(View, LoginRequiredMixin):
+class DashboardView(LoginRequiredMixin, View):
     success_url = 'femtolytics:dashboards_by_app'
     failed_url = 'femtolytics:apps'
     
@@ -34,7 +34,7 @@ class DashboardView(View, LoginRequiredMixin):
             return redirect(self.success_url, apps[0].id)
     
 
-class DashboardByAppView(View, LoginRequiredMixin):
+class DashboardByAppView(LoginRequiredMixin, View):
     template_name = 'femtolytics/dashboard.html'
 
     def get(self, request, app_id):
@@ -100,6 +100,8 @@ class DashboardByAppView(View, LoginRequiredMixin):
         # Map Information        
         try:
             import pycountry
+            from django.contrib.gis.geoip2 import GeoIP2
+
             # SELECT COUNT(DISTINCT(visitor_id)) AS c, country FROM activity GROUP BY country
             activities = Activity.objects.filter(app=app, occured_at__gte=period_start).values(
                 'country').annotate(c=Count('visitor_id', distinct=True)).values('country', 'c')
@@ -131,6 +133,7 @@ class DashboardByAppView(View, LoginRequiredMixin):
             context['locations'] = locations
         except ImportError as e:
             # pycountry unavailable, ignore silently
+            context['no_geoip'] = True
             pass
 
         # Goals
@@ -179,7 +182,7 @@ class DashboardByAppView(View, LoginRequiredMixin):
         return render(request, self.template_name, context)
 
 
-class VisitorView(View, LoginRequiredMixin):
+class VisitorView(LoginRequiredMixin, View):
     template_name = 'femtolytics/visitor.html'
 
     def get(self, request, app_id, visitor_id):
@@ -194,7 +197,7 @@ class VisitorView(View, LoginRequiredMixin):
         return render(request, self.template_name, context)
 
 
-class AppsView(View, LoginRequiredMixin):
+class AppsView(LoginRequiredMixin, View):
     template_name = 'femtolytics/apps.html'
 
     def get(self, request):
@@ -203,9 +206,9 @@ class AppsView(View, LoginRequiredMixin):
         return render(request, self.template_name, context)
 
 
-class AppsAdd(View, LoginRequiredMixin):
+class AppsAdd(LoginRequiredMixin, View):
     template_name = 'femtolytics/apps_add.html'
-    success_url = reverse_lazy('femtolytics:apps_instructions')
+    success_url = 'femtolytics:apps_instructions'
 
     def get(self, request):
         context = {}
@@ -228,7 +231,7 @@ class AppsAdd(View, LoginRequiredMixin):
             return render(request, self.template_name, context)
 
 
-class AppsInstructions(View, LoginRequiredMixin):
+class AppsInstructions(LoginRequiredMixin, View):
     template_name = 'femtolytics/apps_instructions.html'
 
     def get(self, request, app_id):
@@ -238,7 +241,7 @@ class AppsInstructions(View, LoginRequiredMixin):
         return render(request, self.template_name, context)
 
 
-class AppsEdit(View, LoginRequiredMixin):
+class AppsEdit(LoginRequiredMixin, View):
     template_name = 'femtolytics/apps_add.html'
     success_url = reverse_lazy('femtolytics:apps')
     
@@ -256,7 +259,7 @@ class AppsEdit(View, LoginRequiredMixin):
             app = form.save()
             return redirect(self.success_url)
 
-class AppsDelete(View, LoginRequiredMixin):
+class AppsDelete(LoginRequiredMixin, View):
     success_url = reverse_lazy('femtolytics:apps')
 
     def get(self, request, app_id):
@@ -267,7 +270,7 @@ class AppsDelete(View, LoginRequiredMixin):
         return redirect(self.success_url)
 
 
-class SessionsView(View, LoginRequiredMixin):
+class SessionsView(LoginRequiredMixin, View):
     success_url = 'femtolytics:sessions_by_app'
     failed_url = 'femtolytics:apps'
     
@@ -278,7 +281,7 @@ class SessionsView(View, LoginRequiredMixin):
 
         return redirect(self.success_url, apps[0].id)
 
-class SessionsByAppView(View, LoginRequiredMixin):
+class SessionsByAppView(LoginRequiredMixin, View):
     template_name = 'femtolytics/sessions.html'
 
     def get(self, request, app_id):
@@ -311,7 +314,7 @@ class SessionsByAppView(View, LoginRequiredMixin):
         context['sessions'] = qs[offset:offset+page_size]
         return render(request, self.template_name, context)
 
-class SessionView(View, LoginRequiredMixin):
+class SessionView(LoginRequiredMixin, View):
     template_name = 'femtolytics/session.html'
 
     def get(self, request, app_id, session_id):
@@ -326,7 +329,7 @@ class SessionView(View, LoginRequiredMixin):
         return render(request, self.template_name, context)
 
 
-class VisitorsView(View, LoginRequiredMixin):
+class VisitorsView(LoginRequiredMixin, View):
     success_url = 'femtolytics:visitors_by_app'
     failed_url = 'femtolytics:apps'
 
@@ -337,7 +340,7 @@ class VisitorsView(View, LoginRequiredMixin):
 
         return redirect(self.success_url, apps[0].id)
 
-class VisitorsByAppView(View, LoginRequiredMixin):
+class VisitorsByAppView(LoginRequiredMixin, View):
     template_name = 'femtolytics/visitors.html'
 
     def get(self, request, app_id):
@@ -352,7 +355,40 @@ class VisitorsByAppView(View, LoginRequiredMixin):
             app=app).order_by('-registered_at')
         return render(request, self.template_name, context)
 
-class CrashView(View, LoginRequiredMixin):
+class CrashesView(LoginRequiredMixin, View):
+    success_url = 'femtolytics:crashes_by_app'
+    failed_url = 'femtolytics:apps'
+    
+    def get(self, request):
+        apps = App.objects.filter(owner=request.user)
+        if apps.count() == 0:
+            return redirect(self.failed_url)
+        else:
+            return redirect(self.success_url, apps[0].id)
+
+
+class CrashesByAppView(LoginRequiredMixin, View):
+    template_name = 'femtolytics/crashes.html'
+
+    def get(self, request, app_id):
+        app = get_object_or_404(App, pk=app_id)
+        if app.owner != request.user:
+            raise Http404
+        context = {}
+        context['app'] = app
+        crashes = Crash.objects.filter(app=app).prefetch_related('activities')
+        crash_map = {}
+        for crash in crashes:
+            crash_map[crash.signature] = {
+                'id': crash.id,
+                'short_id': crash.short_id,
+                'count': crash.activities.count(),
+                'sample': crash.activities.first().analyzed_properties,
+            }
+        context['crashes'] = crash_map
+        return render(request, self.template_name, context)
+
+class CrashView(LoginRequiredMixin, View):
     template_name = 'femtolytics/crash.html'
 
     def get(self, request, app_id, crash_id):
@@ -368,7 +404,41 @@ class CrashView(View, LoginRequiredMixin):
         context['crash'] = crash
         return render(request, self.template_name, context)
 
-class GoalView(View, LoginRequiredMixin):
+class GoalsView(LoginRequiredMixin, View):
+    success_url = 'femtolytics:goals_by_app'
+    failed_url = 'femtolytics:apps'
+    
+    def get(self, request):
+        apps = App.objects.filter(owner=request.user)
+        if apps.count() == 0:
+            return redirect(self.failed_url)
+        else:
+            return redirect(self.success_url, apps[0].id)
+
+class GoalsByAppView(LoginRequiredMixin, View):
+    template_name = 'femtolytics/goals.html'
+
+    def get(self, request, app_id):
+        app = get_object_or_404(App, pk=app_id)
+        if app.owner != request.user:
+            raise Http404
+        context = {}
+        context['app'] = app
+
+        # Goals
+        goals = Goal.objects.filter(app=app).prefetch_related('activities')
+        goal_map = {}
+        for goal in goals:
+            goal_map[goal.name] = {
+                'id': goal.id,
+                'short_id': goal.short_id,
+                'count': goal.activities.count(),
+            }
+        context['goals'] = goal_map        
+        
+        return render(request, self.template_name, context)
+
+class GoalView(LoginRequiredMixin, View):
     template_name = 'femtolytics/goal.html'
 
     def get(self, request, app_id, goal_id):

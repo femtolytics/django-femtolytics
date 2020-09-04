@@ -1,9 +1,7 @@
 {% extends 'femtolytics/base.html' %}
-
 {% block content %}
 {% include 'femtolytics/navbar.html' %}
 <div class="container">
-    
     <div class="row">
         <div class="col">
             {% if apps|length > 1 %}
@@ -13,13 +11,48 @@
                 {% endfor %}
             </select>
             {% endif %}
-            <h2>Sessions</h2>
+            <h1 class="pb-1 section">Sessions</h1>
         </div>
     </div>
 
     {% for session in sessions %}
         {% include 'femtolytics/fragments/session.html' %}
     {% endfor %}
+    {% if count > page_size %}
+
+    <nav>
+        <ul class="pagination pagination-sm justify-content-center">
+            <li class="page-item {% if page == 0 %}disabled{% endif %}">
+                <a class="page-link" href="{% url 'femtolytics:sessions_by_app' app.id %}?page={{ first_page }}" aria-label="First">
+                    <span aria-hidden="true">&laquo;</span>
+                  </a>            
+            </li>
+            <li class="page-item {% if page == 0 %}disabled{% endif %}">
+                <a class="page-link" href="{% url 'femtolytics:sessions_by_app' app.id %}?page={{ previous_page }}" aria-label="Previous">
+                    <span aria-hidden="true">&lt;</span>
+                  </a>            
+            </li>
+
+            {% for index in pages %}
+                <li class="page-item {% if page == index %}active{% endif %}">
+                    <a class="page-link" href="{% url 'femtolytics:sessions_by_app' app.id %}?page={{ index }}">{{ index|add:1 }}</a>
+                </li>
+            {% endfor %}
+
+            <li class="page-item {% if page == last_page %}disabled{% endif %}">
+                <a class="page-link" href="{% url 'femtolytics:sessions_by_app' app.id %}?page={{ next_page }}" aria-label="Next">
+                    <span aria-hidden="true">&gt;</span>
+                </a>
+            </li>
+            <li class="page-item {% if page == last_page %}disabled{% endif %}">
+                <a class="page-link" href="{% url 'femtolytics:sessions_by_app' app.id %}?page={{ last_page }}" aria-label="Last">
+                    <span aria-hidden="true">&raquo;</span>
+                </a>
+            </li>
+
+        </ul>
+    </nav>
+    {% endif %}
 </div>
 {% endblock %}
 

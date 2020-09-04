@@ -12,22 +12,25 @@
                 {% endfor %}
             </select>
             {% endif %}
-            <h1 class="pb-1 mb-5 section">Visitors</h1>
+            <h1 class="pb-1 mb-5 section">Crashes</h1>
         </div>
     </div>
     <div class="row">
         <div class="col table-responsive">
             <table class="table table-bordered table-condensed table-hover">
                 <thead class="thead-dark">
-                    <tr><th>Visitor</th><th>Joined</th></tr>
+                    <tr><th>Goal</th><th>Occurences</th></tr>
                 </thead>
                 <tbody>
-                    {% for visitor in visitors %}
-                        <tr>
-                            <td><a href="{% url 'femtolytics:visitor' visitor.app_id visitor.id %}">{{ visitor.name }}</a></td>
-                            <td>{{ visitor.registered_at|date:'Y/m/d H:i:s'}}</td>
-                        </tr>
-                    {% endfor %}        
+                    {% for signature, crash in crashes.items %}
+                    <tr>
+                        <td>
+                            <i class="fal fa-car-crash"></i>
+                            <a href="{% url 'femtolytics:crash' app.id crash.id %}">{{ crash.short_id }}</a>
+                        <p style="white-space: pre-line; font-family: monospace;">{{ crash.sample }}</p></td>
+                        <td style="width: 80px;">{{ crash.count }}</td>
+                    </tr>
+                {% endfor %}
                 </tbody>
             </table>
         

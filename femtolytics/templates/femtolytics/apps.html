@@ -12,7 +12,7 @@
                         <tr>
                             <td>{{ app.package_name }}</td>
                             <td>
-                                <a href="{% url 'femtolytics:sessions_by_app' app.id %}">Sessions</a> &middot;
+                                <a href="{% url 'femtolytics:dashboards_by_app' app.id %}">Dashboard</a> &middot;
                                 <a href="{% url 'femtolytics:apps_edit' app.id %}">Edit</a> &middot;
                                 <a href="{% url 'femtolytics:apps_delete' app.id %}">Delete</a>
                             </td>

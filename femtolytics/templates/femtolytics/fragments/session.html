@@ -1,42 +1,66 @@
 <div class="row">
     <div class="col">
-        <h5 class="mb-0">{{ session.short_id }}</h5>
-        <p class="text-muted mb-0">
-            [{{ session.started_at|date:'Y/m/d H:i:s' }} &mdash; {{ session.ended_at|date:'Y/m/d H:i:s' }}]
-            {{ session.duration_str }}
-        </p>
-        <p class="text-muted mb-0">
-            Visitor: <a href="{% url 'femtolytics:visitor' session.app_id session.visitor.id %}">{{ session.visitor.short_id }}</a>
-            &middot;
-            Version: {{ session.sorted_activities.first.version }}
-            &middot;
-            Device: {{ session.sorted_activities.first.device }}
-            &middot;
-            Location: {{ session.sorted_activities.first.location }}
-        </p>
         <div class="table-responsive-sm">
-        <table class="table table-bordered table-sm table-hover w-100">
-            <thead class="thead-dark">
-                <tr><th>Type</th><th>Properties</th><th>Time</th></tr>
-            </thead>
-            <tbody>
-                {% for activity in session.sorted_activities %}
-                <tr>
-                    <td style="width: 120px!important;">{{ activity.analyzed_type }}</td>
-                    <td>
-                        {% if activity.properties %}
-                            <span style="white-space: pre-line;">{{ activity.analyzed_properties }}</span>
-                        {% endif %}
-                        {% if activity.extended_properties %}
-                        <a href="#" onclick="$('#{{ activity.id }}').toggle(); return false;"><i class="fas fa-chevron-down"></i></a>
-                        <div id="{{ activity.id }}" style="display: none; white-space: pre-line;">{{ activity.extended_properties }}</div>
-                        {% endif %}
-                    </td>
-                    <td class="text-muted text-center" style="width: 80px!important;"><small>{{ activity.occured_at|date:'H:i:s' }}</small></td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-        </div>
-    </div>
-</div>
+            <table class="table table-bordered table-sm table-hover w-100">
+                <tbody>
+                    <tr>
+                        <td colspan="3">
+                            <p class="m-0"><strong>{{ session.started_at|date:'Y/m/d H:i:s' }}</strong></p>
+                            <p class="m-0">{{ session.duration_str }}</p>
+                            <p class="m-0"><a href="{% url 'femtolytics:visitor' session.app_id session.visitor.id %}">{{ session.visitor.name }}</a>
+                                {% if session.visitor.first_session_id is not None and session.visitor.first_session_id != session.id %}<i class="fal fa-house-return"></i>{% endif %}
+                            </p>
+                            <p class="m-0">{{ session.app.package_name }} {{ session.sorted_activities.first.version }}</p>
+                            <p class="m-0">{{ session.sorted_activities.first.device }}</p>
+                            {% if session.sorted_activities.first.location %}
+                                <p class="m-0">{{ session.sorted_activities.first.location }}</p>
+                            {% endif %}
+                        </td>
+                    </tr>
+
+                    {% for activity in session.sorted_activities %}
+                    <tr>
+                        <td style="width: 50px!important;" class="text-center">
+                            {% if activity.is_event %}
+                                {% if activity.activity_type == 'VIEW' %}
+                                    <i class="far fa-eye"></i>
+                                {% elif activity.activity_type == 'CRASH' %}
+                                    <i class="fal fa-car-crash"></i>
+                                {% elif activity.activity_type == 'NEW_USER' %}
+                                    <i class="fas fa-user"></i>
+                                {% elif activity.activity_type == 'INACTIVE' or activity.activity_type == 'PAUSED' or activity.activity_type == 'RESUMED'  %}
+                                    <i class="fas fa-mobile-alt"></i>
+                                {% elif activity.activity_type == 'GOAL' %}
+                                    <i class="far fa-coins"></i>
+                                {% else %}
+                                    {{ activity.activity_type }}
+                                {% endif %}
+                            {% else %}
+                                <i class="fal fa-light-switch"></i>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if activity.is_event %}
+                                {% if activity.activity_type == 'DETACHED' or activity.activity_type == 'INACTIVE' or activity.activity_type == 'PAUSED' or activity.activity_type == 'RESUMED'  %}
+                                    {{ activity.activity_type }}
+                                {% endif %}
+                            {% endif %}
+                            {% if activity.is_action %}
+                                {{ activity.activity_type }}
+                            {% endif %}
+                            {% if activity.analyzed_properties %}
+                                <span style="white-space: pre-line;">{{ activity.analyzed_properties }}</span>
+                            {% endif %}
+                            {% if activity.extended_properties %}
+                                <a href="#" onclick="$('#{{ activity.id }}').toggle(); return false;"><i class="fas fa-chevron-down"></i></a>
+                                <div id="{{ activity.id }}" style="display: none; white-space: pre-line; font-family: monospace;">{{ activity.extended_properties }}</div>
+                            {% endif %}
+                        </td>
+                        <td class="text-center" style="width: 80px!important;"><small>{{ activity.occured_at|date:'H:i:s' }}</small></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div> <!-- table -->
+    </div> <!-- col -->
+</div> <!-- row -->

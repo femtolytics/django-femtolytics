@@ -1,0 +1,48 @@
+{% extends 'femtolytics/base.html' %}
+
+{% block content %}
+{% include 'femtolytics/navbar.html' %}
+<div class="container">
+    <div class="row">
+        <div class="col">
+            <h1 class="pb-1 section"><i class="far fa-coins"></i> {{ goal.name }}</h1>
+            [{{ goal.first_at|date:'Y/m/d H:i:s'}} &mdash; {{ goal.last_at|date:'Y/m/d H:i:s'}}]
+
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col table-responsive">
+            <h2>{{ goal.activities.all|length }} Occurences</h2>
+                    {% for activity in goal.activities.all %}
+                    <table class="table table-bordered table-hover">
+                        <tbody>
+        
+                    <tr>
+                        <td colspan="2" style="font-family: monospace;">
+                                {{ activity.analyzed_properties }}
+                        </td>
+                        </tr>
+                        <tr>
+                            <td>Session</td><td><a href="{% url 'femtolytics:session' app.id activity.session.id %}">{{ activity.session.short_id }}</a></td>
+                        </tr>
+                        <tr>
+                            <td>Visitor</td><td><a href="{% url 'femtolytics:visitor' app.id activity.visitor.id %}">{{ activity.visitor.name }}</a></td>
+                        </tr>
+                        <tr>
+                            <td>Occured</td><td>{{ activity.occured_at|date:'Y/m/d H:i:s'}}</td>
+                        </tr>
+                        <tr>
+                            <td>App</td><td>{{ activity.package_name }} {{ activity.package_version }}#{{ activity.package_build }}</td>
+                        </tr>
+                        <tr>
+                            <td>OS</td><td>{{ activity.device_name }} {{ activity.device_os }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+                {% endfor %}
+        </div>
+    </div>
+
+</div>
+{% endblock %}

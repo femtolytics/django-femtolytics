@@ -1,31 +1,11 @@
 {% extends 'femtolytics/base.html' %}
 {% load static %}
-{% block head %}
-<style>
-    .shadowed {
-        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-    }
-    .bordered {
-        border: 1px solid #eeeeee;
-    }
-    .text-lg {
-        font-size: 1.5rem;
-    }
-    .text-sm {
-        font-size: 0.75rem;;
-    }
-    .text-upper {
-        text-transform: uppercase;
-    }
-    .border-r {
-        border-right: 1px solid #d2d6dc;
-    }
-</style>
-{% endblock %}
+
 {% block content %}
 {% include 'femtolytics/navbar.html' %}
 <main class="container">
-    <div class="row mb-4 pl-2 pt-4 pr-2 pb-5 shadowed bordered">
+    {% if activated %}
+    <div class="row">
         <div class="col">
             {% if apps|length > 1 %}
             <select class="form-control mb-2" id="app_selector">
@@ -34,70 +14,157 @@
                 {% endfor %}
             </select>
             {% endif %}
-            <div class="row mb-3">
-                <div class="col-2 ml-5 border-r"><p class="text-lg m-0">{{ session_count }}</p><p class="mt-0 mb-0 text-muted text-sm text-upper">Sessions</p></div>
-                <div class="col-2 ml-3 border-r"><p class="text-lg m-0">{{ visitor_count }}</p><p class="mt-0 mb-0 text-muted text-sm text-upper">New Visitors</p></div>
-
-                <div class="col-2 ml-3 border-r"><p class="text-lg m-0">{{ 30dau }}</p><p class="mt-0 mb-0 text-muted text-sm text-upper">30 DAU</p></div>
-                <div class="col-2 ml-3"><p class="text-lg m-0">{{ 7dau }}</p><p class="mt-0 mb-0 text-muted text-sm text-upper">7 DAU</p></div>
-            </div>
-            
-            <canvas id="myChart" width="400" height="150"></canvas>
         </div>
     </div>
-    <div class="row mb-5">
-        <div class="col-lg p-4 mr-2 shadowed bordered">
-            <h5 class="text-upper">Sessions</h5>
-            <table class="table table-bordered table-condensed">
-                <tbody>
-                    {% for session in sessions %}
-                    <tr>
-                        <td><a href="{% url 'femtolytics:session' app.id session.id %}">{{ session.short_id }}</a></td>
-                        <td>
-                            <p class="mb-0">[{{ session.started_at|date:'Y/m/d H:i:s' }} &mdash; {{ session.ended_at|date:'Y/m/d H:i:s' }}]</p>
-                            <p class="mb-0 text-muted"><small>{{ session.duration_str }} &middot; {{ session.sorted_activities|length }} actions</small></p>
-                        </td>
-                    </tr>
-                    {% endfor %}        
-                </tbody>
-            </table>
+    <div class="row mb-4">
+        <div class="col">
+            <div class="btn-group">
+            <button type="button" class="btn btn-secondary dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                {% if duration == 30 %}Last 30 Days{% endif %}
+                {% if duration == 7 %}Last 7 Days{% endif %}
+            </button>
+            <div class="dropdown-menu">
+                <a class="dropdown-item" href="{% url 'femtolytics:dashboards_by_app' app.id %}?duration=30">Last 30 Days</a>
+                <a class="dropdown-item" href="{% url 'femtolytics:dashboards_by_app' app.id %}?duration=7">Last 7 Days</a>
+            </div>
+            </div>
         </div>
-        <div class="col-lg p-4 shadowed bordered">
-            <h5 class="text-upper">Map</h5>
-            {% if locations %}
-            <div id="map" style="min-width: 200px; min-height: 450px;"></div>
+    </div>
+
+    <!-- Tally -->
+    <div class="row mb-3 no-gutters">
+        <div class="col-3 border-r"><p class="text-lg m-0">{{ session_count }}</p><p class="mt-0 mb-0 text-sm text-upper">Sessions</p></div>
+        <div class="col-3 border-r pl-3"><p class="text-lg m-0">{{ visitor_count }}</p><p class="mt-0 mb-0 text-sm text-upper">Visitors</p></div>
+
+        <div class="col-3 border-r pl-3"><p class="text-lg m-0">{{ 30dau }}</p><p class="mt-0 mb-0 text-sm text-upper">30 DAU</p></div>
+        <div class="col-3 pl-3"><p class="text-lg m-0">{{ 7dau }}</p><p class="mt-0 mb-0 text-sm text-upper">7 DAU</p></div>
+    </div>
+
+    <!-- Chart -->
+    <div class="row mb-4">
+        <div class="col">
+            <div class="chart-container" style="position: relative; height: 30vh; width: 100%; margin:auto;">
+                <canvas id="chart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sessions + Map -->
+    <div class="row">
+        <div class="col-md">
+            <h2>Sessions</h2>
+            {% for session in sessions %}
+            <div class="row">
+                <div class="col">
+                    <a href="{% url 'femtolytics:session' app.id session.id %}">{{ session.started_at|date:'Y/m/d H:i:s' }}</a>
+                </div>
+                <div class="col">
+                    
+                    {{ session.sorted_activities|length }} actions
+                </div>
+            </div>
+            <div class="row mb-2 pb-2 border-bottom border-dark">
+                <div class="col">
+                    <small><a href="{% url 'femtolytics:visitor' app.id session.visitor.id %}">{{ session.visitor.name }}</a> {% if session.visitor.first_session_id is not None and session.visitor.first_session_id != session.id %}<i class="fal fa-house-return"></i>{% endif %}</small>
+                </div>
+                <div class="col">
+                    <small>{{ session.duration_str }}</small>
+                </div>
+            </div>
+            {% endfor %}        
+        </div>
+        <div class="col-md">
+            <h2>Geography</h2>
+            {% if no_geoip %}
+            <p style="min-height: 400px;">Your instance of femtolytics is not configured to retrieve Geography. Please see documentation on how to enable it.</p>
+            {% else %}
+            <div id="map" style="min-width: 200px; min-height: 400px;"></div>
             {% endif %}
         </div>
+    </div> <!-- ROW -->
+    
+    
+    {% if goals %}
+    <!-- GOALS -->
+    <div class="row">
+        <div class="col">
+            <h2>Goals</h2>
+            <table class="table table-bordered table-condensed">
+                {% for name, goal in goals.items %}
+                    <tr>
+                        <td>
+                            <i class="far fa-coins"></i>
+                            <a href="{% url 'femtolytics:goal' app.id goal.id %}">{{ name }}</a>
+                        </td>
+                        <td style="width: 80px;">{{ goal.count }}</td>
+                    </tr>
+                {% endfor %}
+            </table>
+        </div>
     </div>
-</main>
+    {% endif %}
 
+    {% if crashes %}
+    <!-- CRASHES -->
+    <div class="row">
+        <div class="col">
+            <h2>Crashes</h2>
+            <table class="table table-bordered table-condensed">
+                {% for signature, crash in crashes.items %}
+                    <tr>
+                        <td>
+                            <i class="fal fa-car-crash"></i>
+                            <a href="{% url 'femtolytics:crash' app.id crash.id %}">{{ crash.short_id }}</a>
+                        <p style="white-space: pre-line; font-family: monospace;">{{ crash.sample }}</p></td>
+                        <td style="width: 80px;">{{ crash.count }}</td>
+                    </tr>
+                {% endfor %}
+            </table>
+        </div>
+    </div>
+    {% endif %}
+    {% else %}
+    <div class="row mt-5">
+        <div class="col">
+            <p class="display-4">Waiting for data</p>
+            <p class="lead">Femtolytics has not seen any data from <span class="code">{{ app.package_name }}</span> yet. <a href="{% url 'femtolytics:apps_instructions' app.id %}">Click here</a> for instructions on how to integrate Femtolytics in your application.</p>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col pt-5">
+            <div class="mx-auto bg-dark circle pulse"></div>
+        </div>
+    </div>
+    {% endif %}
+</main>
 {% endblock %}
 
 {% block script %}
 <script src="//cdnjs.cloudflare.com/ajax/libs/d3/3.5.3/d3.min.js"></script>
 <script src="//cdnjs.cloudflare.com/ajax/libs/topojson/1.6.9/topojson.min.js"></script>
 <script src="{% static 'femtolytics/datamaps.world.min.js' %}"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.3/Chart.bundle.min.js"></script>
 
 <script>
-var ctx = document.getElementById('myChart').getContext('2d');
-var myChart = new Chart(ctx, {
+{% if activated %}
+var ctx = document.getElementById('chart').getContext('2d');
+var chart = new Chart(ctx, {
     type: 'line',
     data: {
-        "labels": [
-            {% for entry in stats %}
-            "{{ entry.day|date:'Y/m/d'}}",
-            {% endfor %}
-        ],
         "datasets": [
                 {
                     "label": "Sessions",
                     "data": [
                         {% for entry in stats %}
-                            {{ entry.sessions }},
+                            {
+                                x: new Date({{ entry.day.year }}, {{ entry.day.month }} - 1, {{ entry.day.day }}),
+                                y: {{ entry.sessions }},
+                            },
+                            
                         {% endfor %}
                     ],
                     "fill": true,
-                    "lineTension": 0.0,
+                    "lineTension": 0.2,
                     "borderColor": 'rgba(54, 162, 235, 1)',
                     "backgroundColor": 'rgba(54, 162, 235, 0.2)',
                 },
@@ -105,11 +172,15 @@ var myChart = new Chart(ctx, {
                     "label": "New Users",
                     "data": [
                         {% for entry in stats %}
-                            {{ entry.visitors }},
+                            {
+                                x: new Date({{ entry.day.year }}, {{ entry.day.month }} - 1, {{ entry.day.day }}),
+                                y: {{ entry.visitors }},
+                            },
+                            
                         {% endfor %}
                     ],
                     "fill": true,
-                    "lineTension": 0.0,
+                    "lineTension": 0.2,
                     "borderColor": 'rgba(255, 99, 132, 1)',
                     "backgroundColor": 'rgba(255, 99, 132, 0.2)',
                 }
@@ -117,7 +188,14 @@ var myChart = new Chart(ctx, {
         ],
     },
     options: {
+        maintainAspectRatio: false,
         scales: {
+            xAxes: [{
+                type: 'time',
+                time: {
+                    unit: 'day',
+                }
+            }],
             yAxes: [{
                 ticks: {
                     beginAtZero: true
@@ -127,7 +205,10 @@ var myChart = new Chart(ctx, {
     }
 });
 
+
 var map = new Datamap({
+    scope: 'world',
+    projection: 'mercator',
     element: document.getElementById('map'),
     fills: {
         'FILL0.1': 'rgba(54, 162, 235, 0.1)',
@@ -145,7 +226,7 @@ var map = new Datamap({
     },
     geographyConfig: {
         popupTemplate: function(geography, data) {
-            return '<div class="hoverinfo">' + geography.properties.name + "\nSessions: " + data.sessions + '</div>';
+            return '<div class="hoverinfo">' + geography.properties.name + ": " + data.sessions + '</div>';
         },
     },
     data: {
@@ -157,12 +238,31 @@ var map = new Datamap({
         {% endfor %}
     },
 });
+{% else %}
+function check_activated() {
+    console.log('Checking... ');
+    $.get("{% url 'femtolytics:apps_activated' app.id %}", function(data) {
+        console.log('Result', data)
+        if (data.activated) {
+            location.reload();
+        } else {
+            setTimeout(function() {
+                check_activated()
+            }, 30000);
+        }
+    })
+}
+{% endif %}
 
 $(document).ready(function() {
     $('#app_selector').change(function() {
         var selected = $("option:selected", this);
         window.location = selected.attr('data-url');
     })
+    {% if not activated %}
+    console.log('Monitoring for incoming data');
+    check_activated()
+    {% endif %}
 })
 
 

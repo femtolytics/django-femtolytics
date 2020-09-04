@@ -1,0 +1,65 @@
+{% extends 'femtolytics/base.html' %}
+
+{% block content %}
+{% include 'femtolytics/navbar.html' %}
+<main role="main" class="container pt-5">
+    <div class="row">
+        <div class="col">
+            <h2 class="display-4">Configure</h2>
+            <p class="lead">Here are the instructions to setup your mobile application to start using Femtolytics.</p>
+            <p class="lead">Once you have completed those steps and started your application, <a href="{% url 'femtolytics:dashboards_by_app' app.id %}">click here</a> to look at your dashboard.</p>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col">
+            <h3>Flutter</h3>
+            <strong class="text-capitalize">Specifying the package name</strong>
+            <p>
+                Please refer to Flutter's instructions to set the <span class="code">Bundle Identifier</span> to <span class="code">{{ app.package_name }}</span> on <a href="https://flutter.dev/docs/deployment/ios#review-xcode-project-settings">iOS</a> and 
+                the <span class="code">applicationId</span> to <span class="code">{{ app.package_name }}</span> on <a href="https://flutter.dev/docs/deployment/android#reviewing-the-build-configuration">Android</a>.
+            </p>
+            <strong class="text-capitalize">dependencies</strong>
+                <p>Edit your application's <span class="code">pubspec.yaml</span> and ensure that you add the dependency to your flutter project.</p>
+
+                
+                <blockquote class="bg-monochromatic p-2 code">dependencies:
+    femtolytics: "^1.0.0"</blockquote>
+
+    <strong class="text-capitalize">initialize</strong>
+                <p>Then initialize the SDK in your <span class="code">lib/main.dart</span></p>
+                <blockquote class="bg-monochromatic p-2 code">class MyApp extends StatelessWidget {
+    MyApp() {
+        Femtolytics.setEndpoint('https://femtolytics.com/api/v1');
+    }
+}</blockquote>
+
+                <p><span class="text-danger">Beware</span>, by default events are not logged for debug builds or when running in a simulator. You might not see any events in your dashboard while developing. Please refer to the <a href="https://pub.dev/packages/femtolytics">package's instructions</a> to enable logging events in debug builds or on the simulator.</p>
+                
+                <strong class="text-capitalize">exceptions</strong>
+                <p>To log exceptions and errors, modify your application's <span class="code">main</span> as follows</p>
+                <blockquote class="bg-monochromatic p-2 code">import 'dart:async';
+
+import 'package:flutter/femtolytics.dart';
+import 'package:flutter/foundation.dart' as Foundation;
+import 'package:flutter/material.dart';
+
+void main() {
+    FlutterError.onError = (FlutterErrorDetails details) async {
+    if (Foundation.kReleaseMode) {
+        Zone.current.handleUncaughtError(details.exception, details.stack);
+    } else {
+        FlutterError.dumpErrorToConsole(details);
+    }
+    };
+
+    runZonedGuarded<Future<Null>>(() async {
+    runApp(App());
+    }, (Object error, StackTrace stackTrace) {
+    Femtolytics.crash(error, stackTrace);
+    });
+}</blockquote>
+
+        </div>
+    </div>
+</main>
+{% endblock %}
