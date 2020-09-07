@@ -293,6 +293,7 @@ class SessionsByAppView(LoginRequiredMixin, View):
 
         context = {}
         context['app'] = app
+        context['activated'] = Session.objects.filter(app=app).count() > 0
         context['apps'] = App.objects.filter(owner=request.user)
         qs = Session.objects.filter(app=app).prefetch_related('visitor', 'app', 'activity_set').order_by('-ended_at')
         context['count'] = qs.count()
@@ -310,7 +311,6 @@ class SessionsByAppView(LoginRequiredMixin, View):
                 context['pages'].append(first+index)
 
         offset = page_size * page
-        print('%s %s', offset, page_size)
         context['sessions'] = qs[offset:offset+page_size]
         return render(request, self.template_name, context)
 
@@ -350,6 +350,7 @@ class VisitorsByAppView(LoginRequiredMixin, View):
 
         context = {}
         context['app'] = app
+        context['activated'] = Session.objects.filter(app=app).count() > 0
         context['apps'] = App.objects.filter(owner=request.user)
         context['visitors'] = Visitor.objects.filter(
             app=app).order_by('-registered_at')
@@ -376,6 +377,7 @@ class CrashesByAppView(LoginRequiredMixin, View):
             raise Http404
         context = {}
         context['app'] = app
+        context['activated'] = Session.objects.filter(app=app).count() > 0
         crashes = Crash.objects.filter(app=app).prefetch_related('activities')
         crash_map = {}
         for crash in crashes:
@@ -424,8 +426,7 @@ class GoalsByAppView(LoginRequiredMixin, View):
             raise Http404
         context = {}
         context['app'] = app
-
-        # Goals
+        context['activated'] = Session.objects.filter(app=app).count() > 0
         goals = Goal.objects.filter(app=app).prefetch_related('activities')
         goal_map = {}
         for goal in goals:
