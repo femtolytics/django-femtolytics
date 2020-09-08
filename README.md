@@ -53,6 +53,26 @@ python manage.py migrate
 
 All of the dashboard URLS `femtolytics.urls` will require a user to be logged in, so you can make sure nobody has access to that information.
 
+### Optional: Geolocation
+
+By default `django-femtolytics` will not track geo-location of users. To enable this feature you will need to manually install `geoip2` and `pycountry`.
+
+```
+pip install geoip2 pycountry
+```
+
+You will then need to specify where the GEOIP database files are stored in your `settings.py` file.
+
+```python
+    GEOIP_PATH = os.path.join(BASE_DIR, 'geoip')
+```
+
+`geoip` is expecting to find `GeoLite2-City.mmdb` and `GeoLite2-Country.mmdb` in `GEOIP_PATH`.
+
+You can download those from [DB IP](https://db-ip.com/db/lite.php).
+
+*Note: The remote IP will not be stored in the database at any point. That also means that the data will not be backfilled if you enable this feature later on.*
+
 ### Tracking
 
 Femtolytics requires to have created an application with the same package name you used in your application. So make sure to visit the dashboard and `add an application` before generating event in your client.
